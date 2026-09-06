@@ -1,0 +1,18 @@
+@import url("./base/reset.css");
+@import url("./base/variables.css");
+@import url("./base/typography.css");
+@import url("./components/header.css");
+@import url("./sections/hero.css");
+@import url("./components/cards.css");
+@import url("./sections/featured.css");
+@import url("./sections/catalogo.css");
+@import url("./sections/produto.css");
+
+body {
+    overflow-x: hidden;
+}
+
+.container {
+    width: min(100% - (var(--container-padding) * 2), var(--container-width));
+    margin-inline: auto;
+}

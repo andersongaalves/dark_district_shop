@@ -1,0 +1,21 @@
+body {
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    font-family: var(--font-heading);
+    line-height: 1.2;
+}
+
+.display {
+    font-family: var(--font-display);
+}
+
+.editorial {
+    font-family: var(--font-editorial);
+}

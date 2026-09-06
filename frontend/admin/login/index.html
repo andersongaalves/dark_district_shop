@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Dark District — Login</title>
+
+    <link
+        rel="stylesheet"
+        href="./login.css"
+    >
+</head>
+
+<body>
+
+    <main class="login">
+
+        <section class="login__card">
+
+            <span class="login__brand">
+                DARK DISTRICT
+            </span>
+
+            <h1>
+                Admin
+            </h1>
+
+            <p>
+                Entre para acessar o painel.
+            </p>
+
+            <form id="login-form">
+
+                <label>
+                    Usuário
+
+                    <input
+                        type="text"
+                        name="username"
+                        autocomplete="username"
+                        required
+                    >
+                </label>
+
+                <label>
+                    Senha
+
+                    <input
+                        type="password"
+                        name="password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </label>
+
+                <p
+                    id="login-error"
+                    class="login__error"
+                ></p>
+
+                <button type="submit">
+                    Entrar
+                </button>
+
+            </form>
+
+        </section>
+
+    </main>
+
+    <script
+        type="module"
+        src="./login.js"
+    ></script>
+
+</body>
+
+</html>
