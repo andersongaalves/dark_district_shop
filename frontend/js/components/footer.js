@@ -76,4 +76,4 @@ export function renderFooter() {
     `;
 
     document.body.appendChild(footer);
-}
+} 
