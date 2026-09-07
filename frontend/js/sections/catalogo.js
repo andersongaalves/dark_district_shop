@@ -1,5 +1,5 @@
 import { renderHeader } from "../components/header.js";
-import { getProducts } from "./products_api.js";
+import { getProducts } from "../sections/produto/products_api.js";
 import { createProductCard } from "../components/product_card.js";
 
 export async function renderCatalogo() {

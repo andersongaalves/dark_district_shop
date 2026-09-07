@@ -133,11 +133,87 @@
 
 .produto__description {
     max-width: 600px;
-    margin: 1.5rem 0 0;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.produto__description summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0;
+    color: var(--color-text);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    list-style: none;
+}
+
+.produto__description summary::-webkit-details-marker {
+    display: none;
+}
+
+.produto__description-icon {
+    color: var(--color-primary);
+    font-size: 1.2rem;
+    font-weight: 400;
+    transition: transform 180ms ease;
+}
+
+.produto__description[open]
+.produto__description-icon {
+    transform: rotate(45deg);
+}
+
+.produto__description-content {
+    padding: 0 0 1.5rem;
     color: var(--color-text-muted);
     font-family: "Cormorant Garamond", serif;
-    font-size: 1.15rem;
-    line-height: 1.7;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+.produto__description-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.produto__description-section + .produto__description-section {
+    margin-top: 1.35rem;
+}
+
+.produto__description-title {
+    margin: 0;
+    color: var(--color-text);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+.produto__description-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin: 0;
+    padding-left: 1.15rem;
+}
+
+.produto__description-list li {
+    margin: 0;
+    padding-left: 0.15rem;
+    line-height: 1.55;
+}
+
+.produto__description-list li::marker {
+    font-size: 0.65em;
 }
 
 .produto__option {
@@ -150,8 +226,8 @@
     color: var(--color-text);
     font-family: "Rajdhani", sans-serif;
     font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
 }
 
@@ -162,29 +238,52 @@
 }
 
 .produto__option-button {
-    min-width: 48px;
-    padding: 0.7rem 1rem;
+    min-width: 52px;
+    min-height: 42px;
+    padding: 0.65rem 1rem;
     border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-muted);
     font-family: "Rajdhani", sans-serif;
     font-size: 0.8rem;
     font-weight: 600;
+    letter-spacing: 0.04em;
     cursor: pointer;
     transition:
         color 180ms ease,
         border-color 180ms ease,
-        background 180ms ease;
+        background 180ms ease,
+        opacity 180ms ease;
 }
 
-.produto__option-button:hover,
-.produto__option-button.is-active {
+.produto__option-button:hover:not(:disabled) {
     border-color: var(--color-primary);
     color: var(--color-text);
 }
 
 .produto__option-button.is-active {
+    border-color: var(--color-primary);
     background: var(--color-primary);
+    color: #08090D;
+}
+
+.produto__option-button:disabled,
+.produto__option-button.is-disabled {
+    position: relative;
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.produto__option-button:disabled::after,
+.produto__option-button.is-disabled::after {
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    width: 80%;
+    height: 1px;
+    background: currentColor;
+    content: "";
+    transform: rotate(-25deg);
 }
 
 .produto__availability {
@@ -285,5 +384,13 @@
 
     .produto__price {
         font-size: 1.5rem;
+    }
+
+    .produto__description {
+        font-size: 1.05rem;
+    }
+
+    .produto__description-title {
+        font-size: 0.85rem;
     }
 }

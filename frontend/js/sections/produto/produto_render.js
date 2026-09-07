@@ -15,6 +15,10 @@ import {
     setupInterestButton
 } from "./produto_interest.js";
 
+import {
+    renderDescription
+} from "./produto_description.js";
+
 export function renderProduct(section, product) {
     const mainImage = product.images?.[0]?.url ?? null;
 
@@ -122,9 +126,16 @@ export function renderProduct(section, product) {
                             .replace(".", ",")}
                     </div>
 
-                    <p class="produto__description">
-                        ${product.description}
-                    </p>
+                    <details class="produto__description">
+                        <summary>
+                            Descrição
+                            <span class="produto__description-icon">+</span>
+                        </summary>
+
+                        <div class="produto__description-content">
+                            ${renderDescription(product.description)}
+                        </div>
+                    </details>
 
                     ${
                         colors.length
@@ -208,7 +219,7 @@ export function renderProduct(section, product) {
     `;
 
     setupGallery(section);
-    setupOptions(section, product, () => updateProductAvailability(section, product));
+    setupOptions(section, product);
     updateAllOptionAvailability(section, product);
     updateProductAvailability(section, product);
     setupInterestButton(section, product);

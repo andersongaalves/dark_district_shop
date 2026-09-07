@@ -3,7 +3,6 @@
   "name": "dark-district-shop",
   "compatibility_date": "2026-09-07",
   "assets": {
-    "directory": ".",
-    "not_found_handling": "single-page-application"
+    "directory": "."
   }
 }
