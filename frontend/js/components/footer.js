@@ -1,3 +1,5 @@
+import { ROUTES } from "../utils/urls.js";
+
 export function renderFooter() {
     const footer = document.createElement("footer");
     footer.className = "site-footer";
