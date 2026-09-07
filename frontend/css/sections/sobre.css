@@ -1,0 +1,563 @@
+/* =========================================================
+   DARK DISTRICT — SOBRE
+   ========================================================= */
+
+:root {
+    --bg: #08090c;
+    --bg-soft: #0c0d11;
+    --surface: #0f1015;
+    --border: rgba(255, 255, 255, 0.13);
+    --border-soft: rgba(255, 255, 255, 0.07);
+    --text: #f5f3f0;
+    --text-soft: #9a9694;
+    --text-muted: #66636a;
+    --cyan: #00d4ff;
+    --purple: #b22af0;
+    --accent: #8f42ff;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+::selection {
+    background: var(--purple);
+    color: #fff;
+}
+
+/* =========================================================
+   CONTAINER
+   ========================================================= */
+
+.about-container {
+    width: min(960px, calc(100% - 48px));
+    margin: 0 auto;
+}
+
+/* =========================================================
+   HERO
+   ========================================================= */
+
+.about-hero {
+    min-height: 72vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid var(--border-soft);
+    overflow: hidden;
+}
+
+.about-hero::before {
+    content: "";
+    position: absolute;
+    width: 420px;
+    height: 420px;
+    right: -220px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: radial-gradient(
+        circle,
+        rgba(178, 42, 240, 0.08),
+        transparent 70%
+    );
+    pointer-events: none;
+}
+
+.about-hero-content {
+    position: relative;
+    z-index: 1;
+    padding: 100px 0;
+}
+
+.about-label {
+    display: block;
+    margin-bottom: 24px;
+    color: var(--purple);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.about-hero h1 {
+    max-width: 850px;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(56px, 8vw, 112px);
+    font-weight: 400;
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+}
+
+.about-hero h1 span {
+    display: block;
+}
+
+.about-hero-description {
+    max-width: 590px;
+    margin-top: 42px;
+    color: var(--text-soft);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 19px;
+    line-height: 1.7;
+}
+
+.about-hero-mark {
+    position: absolute;
+    right: 0;
+    bottom: 42px;
+    color: var(--text-muted);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+/* =========================================================
+   SEÇÕES EDITORIAIS
+   ========================================================= */
+
+.about-section {
+    padding: 120px 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.about-section-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.85fr) minmax(320px, 1.15fr);
+    gap: 100px;
+    align-items: start;
+}
+
+.about-section-heading {
+    position: relative;
+    padding-left: 28px;
+}
+
+.about-section-heading::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 3px;
+    width: 1px;
+    height: 100%;
+    min-height: 90px;
+    background: linear-gradient(
+        to bottom,
+        var(--purple),
+        transparent
+    );
+}
+
+.about-section-number {
+    display: block;
+    margin-bottom: 22px;
+    color: var(--purple);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+}
+
+.about-section h2 {
+    max-width: 480px;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(38px, 4vw, 62px);
+    font-weight: 400;
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+}
+
+.about-section-content {
+    padding-top: 32px;
+}
+
+.about-section-content p {
+    margin-bottom: 28px;
+    color: var(--text-soft);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 19px;
+    line-height: 1.8;
+}
+
+.about-section-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* =========================================================
+   ORIGEM — VALE DO SÃO FRANCISCO
+   ========================================================= */
+
+.about-origin {
+    position: relative;
+    padding: 150px 0;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.about-origin::before {
+    content: "VALE";
+    position: absolute;
+    right: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.018);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(180px, 25vw, 360px);
+    line-height: 1;
+    pointer-events: none;
+}
+
+.about-origin-inner {
+    position: relative;
+    z-index: 1;
+}
+
+.about-origin-label {
+    display: block;
+    margin-bottom: 28px;
+    color: var(--cyan);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.about-origin h2 {
+    max-width: 850px;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(48px, 7vw, 94px);
+    font-weight: 400;
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+}
+
+.about-origin h2 em {
+    color: var(--text-soft);
+    font-style: normal;
+}
+
+.about-origin-text {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 70px;
+    margin-top: 70px;
+    max-width: 850px;
+}
+
+.about-origin-text p {
+    color: var(--text-soft);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 18px;
+    line-height: 1.8;
+}
+
+/* =========================================================
+   CATEGORIAS
+   ========================================================= */
+
+.about-categories {
+    padding: 120px 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.about-categories-header {
+    margin-bottom: 52px;
+}
+
+.about-categories-header .about-section-number {
+    margin-bottom: 16px;
+}
+
+.about-categories-header h2 {
+    max-width: 650px;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(40px, 5vw, 68px);
+    font-weight: 400;
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
+}
+
+.about-category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--border);
+}
+
+.about-category {
+    min-height: 310px;
+    padding: 34px 32px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    transition:
+        background 0.35s ease,
+        border-color 0.35s ease;
+}
+
+.about-category:last-child {
+    border-right: 0;
+}
+
+.about-category:hover {
+    background: rgba(178, 42, 240, 0.025);
+    border-color: rgba(178, 42, 240, 0.35);
+}
+
+.about-category-number {
+    color: var(--purple);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+}
+
+.about-category h3 {
+    margin-top: 72px;
+    margin-bottom: 18px;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 30px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.about-category p {
+    color: var(--text-soft);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.about-category-link {
+    margin-top: auto;
+    padding-top: 30px;
+    color: var(--purple);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+/* =========================================================
+   MANIFESTO
+   ========================================================= */
+
+.about-manifesto {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    text-align: center;
+    overflow: hidden;
+}
+
+.about-manifesto::before {
+    content: "";
+    position: absolute;
+    inset: 20% 20%;
+    background: radial-gradient(
+        circle,
+        rgba(178, 42, 240, 0.07),
+        transparent 65%
+    );
+    pointer-events: none;
+}
+
+.about-manifesto-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+}
+
+.about-manifesto-label {
+    display: block;
+    margin-bottom: 28px;
+    color: var(--purple);
+    font-family: "Rajdhani", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+}
+
+.about-manifesto h2 {
+    max-width: 1000px;
+    margin: 0 auto;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(50px, 7vw, 100px);
+    font-weight: 400;
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+}
+
+.about-manifesto p {
+    margin: 35px auto 0;
+    max-width: 480px;
+    color: var(--text-muted);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 17px;
+    font-style: italic;
+}
+
+/* =========================================================
+   ANIMAÇÕES
+   ========================================================= */
+
+.about-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition:
+        opacity 0.8s ease,
+        transform 0.8s ease;
+}
+
+.about-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* =========================================================
+   RESPONSIVO
+   ========================================================= */
+
+@media (max-width: 800px) {
+    .about-container {
+        width: min(100% - 32px, 620px);
+    }
+
+    .about-hero {
+        min-height: 65vh;
+    }
+
+    .about-hero-content {
+        padding: 80px 0;
+    }
+
+    .about-hero h1 {
+        font-size: clamp(48px, 14vw, 78px);
+    }
+
+    .about-section {
+        padding: 90px 0;
+    }
+
+    .about-section-grid {
+        grid-template-columns: 1fr;
+        gap: 35px;
+    }
+
+    .about-section-content {
+        padding-top: 0;
+    }
+
+    .about-origin {
+        padding: 100px 0;
+    }
+
+    .about-origin-text {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        margin-top: 50px;
+    }
+
+    .about-category-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .about-category {
+        min-height: 250px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .about-category:last-child {
+        border-bottom: 0;
+    }
+
+    .about-category h3 {
+        margin-top: 55px;
+    }
+
+    .about-manifesto {
+        min-height: 55vh;
+    }
+}
+
+@media (max-width: 480px) {
+    .about-container {
+        width: calc(100% - 28px);
+    }
+
+    .about-hero-content {
+        padding: 65px 0;
+    }
+
+    .about-hero-description {
+        margin-top: 30px;
+        font-size: 17px;
+    }
+
+    .about-section {
+        padding: 75px 0;
+    }
+
+    .about-section-heading {
+        padding-left: 20px;
+    }
+
+    .about-section h2 {
+        font-size: 42px;
+    }
+
+    .about-section-content p {
+        font-size: 17px;
+    }
+
+    .about-origin {
+        padding: 85px 0;
+    }
+
+    .about-origin h2 {
+        font-size: 48px;
+    }
+
+    .about-origin-text p {
+        font-size: 17px;
+    }
+
+    .about-categories {
+        padding: 80px 0;
+    }
+
+    .about-category {
+        padding: 28px 24px;
+    }
+
+    .about-manifesto h2 {
+        font-size: 50px;
+    }
+}

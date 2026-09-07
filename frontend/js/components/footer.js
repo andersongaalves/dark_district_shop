@@ -55,10 +55,6 @@ export function renderFooter() {
                         <a href="https://br.pinterest.com/Dark_District/" target="_blank" rel="noopener noreferrer">
                             Pinterest
                         </a>
-
-                        <a href="https://wa.me/" target="_blank" rel="noopener noreferrer">
-                            WhatsApp
-                        </a>
                     </div>
                 </div>
             </div>
