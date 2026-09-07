@@ -1,4 +1,10 @@
-const API_URL = "http://127.0.0.1:8000";
+const LOCAL_API = "http://127.0.0.1:8000";
+const PROD_API = "https://dark-district-api.onrender.com";
+
+const API_URL = window.location.hostname === "127.0.0.1" ||
+                window.location.hostname === "localhost"
+    ? LOCAL_API
+    : PROD_API;
 
 export async function getProducts() {
     const response = await fetch(`${API_URL}/produtos`);
