@@ -26,7 +26,7 @@ export function renderFooter() {
                     <h3 class="footer-title">Navegação</h3>
 
                     <ul class="footer-links">
-                        <li><a href="/frontend/pages/catalogo/index.html">Catálogo</a></li>
+                        <li><a href="/frontend/pages/catalogo/">Catálogo</a></li>
                         <li><a href="/frontend/#destaques">Destaques</a></li>
                     </ul>
                 </div>
