@@ -1,11 +1,11 @@
-import { renderHeader } from "../components/header.js";
+import { renderHeader } from "../../components/header.js";
 import { getProduct } from "./products_api.js";
 
 import {
     renderProduct,
     renderNotFound,
     renderError
-} from "./produto/produto_render.js";
+} from "./produto_render.js";
 
 export async function renderProduto() {
     const section = document.querySelector("#produto");

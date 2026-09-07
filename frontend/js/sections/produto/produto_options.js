@@ -1,4 +1,4 @@
-export function setupOptions(section, product) {
+export function setupOptions(section, product, onChange) {
     const optionButtons = section.querySelectorAll(
         ".produto__option-button"
     );
@@ -26,6 +26,10 @@ export function setupOptions(section, product) {
                 section,
                 product
             );
+
+            if (onChange) {
+                onChange();
+            }
         });
     });
 }
@@ -35,11 +39,9 @@ export function updateAllOptionAvailability(
     product
 ) {
     const selected = getSelectedOptions(section);
-
     const buttons = section.querySelectorAll(
         ".produto__option-button"
     );
-
     const variants = product.variants ?? [];
 
     buttons.forEach((button) => {
@@ -55,16 +57,14 @@ export function updateAllOptionAvailability(
             (variant) => {
                 if (
                     testSelection.color &&
-                    variant.color !==
-                        testSelection.color
+                    variant.color !== testSelection.color
                 ) {
                     return false;
                 }
 
                 if (
                     testSelection.size &&
-                    variant.size !==
-                        testSelection.size
+                    variant.size !== testSelection.size
                 ) {
                     return false;
                 }

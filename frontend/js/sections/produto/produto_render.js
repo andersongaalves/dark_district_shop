@@ -1,14 +1,19 @@
 import { ROUTES } from "../../utils/urls.js";
 
 import { setupGallery } from "./produto_gallery.js";
+
 import {
     setupOptions,
     updateAllOptionAvailability
 } from "./produto_options.js";
 
-import { updateProductAvailability } from "./produto_availability.js";
+import {
+    updateProductAvailability
+} from "./produto_availability.js";
 
-import { setupInterestButton } from "./produto_interest.js";
+import {
+    setupInterestButton
+} from "./produto_interest.js";
 
 export function renderProduct(section, product) {
     const mainImage = product.images?.[0]?.url ?? null;
@@ -203,7 +208,7 @@ export function renderProduct(section, product) {
     `;
 
     setupGallery(section);
-    setupOptions(section, product);
+    setupOptions(section, product, () => updateProductAvailability(section, product));
     updateAllOptionAvailability(section, product);
     updateProductAvailability(section, product);
     setupInterestButton(section, product);
