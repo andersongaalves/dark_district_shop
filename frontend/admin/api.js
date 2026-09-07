@@ -1,4 +1,10 @@
-const API_URL = "http://127.0.0.1:8000";
+const LOCAL_API = "http://127.0.0.1:8000";
+const PROD_API = "https://dark-district-api.onrender.com";
+
+const API_URL = window.location.hostname === "localhost" ||
+                window.location.hostname === "127.0.0.1"
+    ? LOCAL_API
+    : PROD_API;
 
 function getToken() {
     return localStorage.getItem("access_token");
