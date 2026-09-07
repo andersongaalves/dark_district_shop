@@ -7,6 +7,7 @@
 @import url("./sections/featured.css");
 @import url("./sections/catalogo.css");
 @import url("./sections/produto.css");
+@import url("./components/footer.css");
 
 body {
     overflow-x: hidden;
