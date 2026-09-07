@@ -6,21 +6,21 @@ from sqlalchemy import pool
 from alembic import context
 
 from database import Base
+from core.config import settings
+
 from models.produto import Produto, ProdutoImagem, ProdutoVariante
 
 
 config = context.config
 
-
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
 
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
+    url = settings.DATABASE_URL
 
     context.configure(
         url=url,
@@ -37,7 +37,9 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        {
+            "sqlalchemy.url": settings.DATABASE_URL
+        },
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
