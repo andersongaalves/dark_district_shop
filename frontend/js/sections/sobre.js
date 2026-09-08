@@ -1,5 +1,6 @@
 import { renderHeader } from "../components/header.js";
 import { renderFooter } from "../components/footer.js";
+import { ROUTES } from "../utils/urls.js";
 
 const sobre = document.getElementById("sobre");
 
@@ -159,7 +160,7 @@ function renderSobre() {
 
                 <div class="about-category-grid">
                     <a
-                        href="../../index.html#catalogo"
+                        href="${ROUTES.catalogo}"
                         class="about-category"
                     >
                         <span class="about-category-number">01</span>
@@ -177,7 +178,7 @@ function renderSobre() {
                     </a>
 
                     <a
-                        href="../../index.html#brecho"
+                        href="${ROUTES.brecho}"
                         class="about-category"
                     >
                         <span class="about-category-number">02</span>
@@ -195,7 +196,7 @@ function renderSobre() {
                     </a>
 
                     <a
-                        href="../../index.html#drops"
+                        href="${ROUTES.drops}"
                         class="about-category"
                     >
                         <span class="about-category-number">03</span>

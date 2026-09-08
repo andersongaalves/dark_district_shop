@@ -7,7 +7,10 @@ export const CONTACTS = {
 export const ROUTES = {
     home: new URL("index.html", FRONTEND_URL).href,
     catalogo: new URL("pages/catalogo/index.html", FRONTEND_URL).href,
+    brecho: new URL("pages/brecho/index.html", FRONTEND_URL).href,
+    drops: new URL("pages/brecho/index.html", FRONTEND_URL).href,
     sobre: new URL("pages/sobre/index.html", FRONTEND_URL).href
+
 };
 
 export function getProductUrl(productId) {
