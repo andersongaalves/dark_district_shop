@@ -17,7 +17,7 @@ export async function renderFeatured() {
                         Dark District
                     </span>
 
-                    <h2 class="featured__title">
+                    <h2 id="destaques" class="featured__title">
                         Destaques
                     </h2>
                 </div>
