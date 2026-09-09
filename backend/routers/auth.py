@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from core.security import (
+    DUMMY_HASH,
     create_access_token,
     verify_password,
 )
@@ -31,25 +32,15 @@ def login(
         .first()
     )
 
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário ou senha inválidos."
-        )
-
-    if not usuario.active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário desativado."
-        )
-
-    if not verify_password(
+    valid_password = verify_password(
         form_data.password,
-        usuario.password_hash
-    ):
+        usuario.password_hash if usuario else DUMMY_HASH,
+    )
+    if not usuario or not valid_password or not usuario.active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário ou senha inválidos."
+            detail="Usuário ou senha inválidos.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     token = create_access_token({

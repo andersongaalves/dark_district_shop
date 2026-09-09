@@ -83,7 +83,7 @@ def test_login_usuario_desativado(public_client, db):
 
     assert response.status_code == 401
     assert response.json()["detail"] == (
-        "Usuário desativado."
+        "Usuário ou senha inválidos."
     )
 
 

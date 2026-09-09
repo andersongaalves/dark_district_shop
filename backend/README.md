@@ -56,3 +56,11 @@ Testes de migration usam um arquivo temporário e compilação PostgreSQL offlin
 O fixture `public_client` mantém a autenticação real; `client` substitui apenas o
 usuário para testes focados no CRUD. Bancos locais existentes não são usados.
 Essa cobertura não substitui uma execução contra PostgreSQL de homologação.
+
+## Segurança
+
+Consulte [a revisão de segurança](SECURITY.md) para proteções de autenticação,
+limites configuráveis de requisição/login, resultados dos testes e pendências de
+chave de assinatura e infraestrutura. Credenciais não devem ser impressas em logs
+nem versionadas; a leitura explícita de campos `SecretStr` fica restrita aos pontos
+que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.

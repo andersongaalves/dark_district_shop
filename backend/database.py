@@ -4,10 +4,11 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from core.config import settings
 
 
-DATABASE_URL = settings.DATABASE_URL
+DATABASE_URL = settings.DATABASE_URL.get_secret_value()
 
 engine = create_engine(
     DATABASE_URL,
+    hide_parameters=True,
     connect_args={
         "check_same_thread": False
     } if DATABASE_URL.startswith("sqlite") else {}

@@ -6,6 +6,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect
+from pydantic import SecretStr
 
 from core.config import settings
 from database import Base
@@ -13,7 +14,7 @@ from database import Base
 
 def test_migrations_match_models_on_fresh_database(tmp_path, monkeypatch):
     database_url = f"sqlite:///{(tmp_path / 'migration.sqlite').as_posix()}"
-    monkeypatch.setattr(settings, "DATABASE_URL", database_url)
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(database_url))
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     command.upgrade(config, "head")
     engine = create_engine(database_url)
@@ -29,7 +30,7 @@ def test_migrations_match_models_on_fresh_database(tmp_path, monkeypatch):
 
 
 def test_postgresql_migration_compiles_offline(monkeypatch):
-    monkeypatch.setattr(settings, "DATABASE_URL", "postgresql://localhost/offline_test")
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr("postgresql://localhost/offline_test"))
     output = StringIO()
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"), output_buffer=output)
     command.upgrade(config, "head", sql=True)

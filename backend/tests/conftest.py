@@ -20,6 +20,8 @@ os.environ["SECRET_KEY"] = secrets.token_urlsafe(32)
 from database import Base, get_db
 from main import app
 from core.security import get_current_user
+from core.request_security import LoginRateLimiter
+from core.config import settings
 from models.usuario import Usuario
 
 
@@ -42,7 +44,10 @@ def db():
 
 
 @pytest.fixture
-def public_client(db):
+def public_client(db, monkeypatch):
+    monkeypatch.setattr(app.state, "login_limiter", LoginRateLimiter(
+        attempts=settings.LOGIN_ATTEMPTS, window_seconds=settings.LOGIN_WINDOW_SECONDS
+    ))
     def override_get_db():
         yield db
     app.dependency_overrides[get_db] = override_get_db

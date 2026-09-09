@@ -20,7 +20,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = settings.DATABASE_URL
+    url = settings.DATABASE_URL.get_secret_value()
 
     context.configure(
         url=url,
@@ -38,7 +38,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     connectable = engine_from_config(
         {
-            "sqlalchemy.url": settings.DATABASE_URL
+            "sqlalchemy.url": settings.DATABASE_URL.get_secret_value()
         },
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,

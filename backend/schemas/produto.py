@@ -4,8 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProdutoImagemBase(BaseModel):
-    url: str
-    ordem: int = 0
+    url: str = Field(max_length=500)
+    ordem: int = Field(default=0, ge=-2_147_483_648, le=2_147_483_647)
 
 
 class ProdutoImagemCreate(ProdutoImagemBase):
@@ -19,9 +19,9 @@ class ProdutoImagemResponse(ProdutoImagemBase):
 
 
 class ProdutoVarianteBase(BaseModel):
-    size: str | None = None
-    color: str | None = None
-    quantity: int = Field(default=0, ge=0)
+    size: str | None = Field(default=None, max_length=50)
+    color: str | None = Field(default=None, max_length=100)
+    quantity: int = Field(default=0, ge=0, le=2_147_483_647)
 
 
 class ProdutoVarianteCreate(ProdutoVarianteBase):
@@ -35,12 +35,12 @@ class ProdutoVarianteResponse(ProdutoVarianteBase):
 
 
 class ProdutoCreate(BaseModel):
-    id: str
-    title: str
+    id: str = Field(max_length=50)
+    title: str = Field(max_length=200)
     description: str
-    price: float = Field(ge=0)
-    category: str
-    gender: str
+    price: float = Field(ge=0, allow_inf_nan=False)
+    category: str = Field(max_length=100)
+    gender: str = Field(max_length=50)
     available: bool = True
     featured: bool = False
 
@@ -49,11 +49,11 @@ class ProdutoCreate(BaseModel):
 
 
 class ProdutoUpdate(BaseModel):
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=200)
     description: str | None = None
-    price: float | None = Field(default=None, ge=0)
-    category: str | None = None
-    gender: str | None = None
+    price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    category: str | None = Field(default=None, max_length=100)
+    gender: str | None = Field(default=None, max_length=50)
     available: bool | None = None
     featured: bool | None = None
 

@@ -32,7 +32,7 @@ def test_invalid_sessions_cannot_write(public_client, db, kind):
         payload = {}
     if kind == "expired":
         payload["exp"] = datetime.now(timezone.utc) - timedelta(seconds=1)
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        token = jwt.encode(payload, settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM)
     else:
         token = create_access_token(payload)
     response = public_client.post("/produtos", json=produto_payload(),
