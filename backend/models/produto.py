@@ -67,7 +67,8 @@ class Produto(Base):
     images: Mapped[list["ProdutoImagem"]] = relationship(
         "ProdutoImagem",
         back_populates="produto",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        order_by="ProdutoImagem.ordem, ProdutoImagem.id"
     )
 
     variants: Mapped[list["ProdutoVariante"]] = relationship(

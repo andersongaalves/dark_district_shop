@@ -1,3 +1,4 @@
+import { isProductAvailable } from "../../core/products.js";
 import { getSelectedOptions } from "./produto_options.js";
 
 export function updateProductAvailability(
@@ -15,37 +16,7 @@ export function updateProductAvailability(
     if (!availability || !interestButton) return;
 
     const selected = getSelectedOptions(section);
-    const variants = product.variants ?? [];
-
-    let variant;
-
-    if (Object.keys(selected).length === 0) {
-        variant = variants.find(
-            (item) => item.quantity > 0
-        );
-    } else {
-        variant = variants.find((item) => {
-            if (
-                selected.color &&
-                item.color !== selected.color
-            ) {
-                return false;
-            }
-
-            if (
-                selected.size &&
-                item.size !== selected.size
-            ) {
-                return false;
-            }
-
-            return true;
-        });
-    }
-
-    const available = Boolean(
-        variant && variant.quantity > 0
-    );
+    const available = isProductAvailable(product, selected);
 
     availability.classList.toggle(
         "is-available",

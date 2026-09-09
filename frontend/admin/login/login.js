@@ -1,3 +1,4 @@
+import { ROUTES } from "../../js/utils/urls.js";
 import { login } from "../auth.js";
 
 const form = document.querySelector("#login-form");
@@ -16,11 +17,10 @@ form?.addEventListener("submit", async (event) => {
     try {
         await login(username, password);
 
-        window.location.href = "../index.html";
+        window.location.href = ROUTES.admin;
     } catch (err) {
         console.error("Erro ao fazer login:", err);
 
-        error.textContent =
-            "Usuário ou senha incorretos.";
+        error.textContent = err.message || "Não foi possível entrar. Tente novamente.";
     }
 });

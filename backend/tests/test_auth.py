@@ -16,10 +16,10 @@ def criar_usuario(db, username="admin", password="123456", active=True):
     return usuario
 
 
-def test_login_sucesso(client, db):
+def test_login_sucesso(public_client, db):
     criar_usuario(db)
 
-    response = client.post(
+    response = public_client.post(
         "/auth/login",
         data={
             "username": "admin",
@@ -35,10 +35,10 @@ def test_login_sucesso(client, db):
     assert data["token_type"] == "bearer"
 
 
-def test_login_senha_incorreta(client, db):
+def test_login_senha_incorreta(public_client, db):
     criar_usuario(db)
 
-    response = client.post(
+    response = public_client.post(
         "/auth/login",
         data={
             "username": "admin",
@@ -52,8 +52,8 @@ def test_login_senha_incorreta(client, db):
     )
 
 
-def test_login_usuario_inexistente(client):
-    response = client.post(
+def test_login_usuario_inexistente(public_client):
+    response = public_client.post(
         "/auth/login",
         data={
             "username": "nao_existe",
@@ -67,13 +67,13 @@ def test_login_usuario_inexistente(client):
     )
 
 
-def test_login_usuario_desativado(client, db):
+def test_login_usuario_desativado(public_client, db):
     criar_usuario(
         db,
         active=False
     )
 
-    response = client.post(
+    response = public_client.post(
         "/auth/login",
         data={
             "username": "admin",
@@ -87,10 +87,10 @@ def test_login_usuario_desativado(client, db):
     )
 
 
-def test_token_acessa_rota_protegida(client, db):
+def test_token_acessa_rota_protegida(public_client, db):
     criar_usuario(db)
 
-    login = client.post(
+    login = public_client.post(
         "/auth/login",
         data={
             "username": "admin",
@@ -100,7 +100,7 @@ def test_token_acessa_rota_protegida(client, db):
 
     token = login.json()["access_token"]
 
-    response = client.post(
+    response = public_client.post(
         "/produtos",
         json={
             "id": "auth-test-001",

@@ -44,8 +44,8 @@ class ProdutoCreate(BaseModel):
     available: bool = True
     featured: bool = False
 
-    images: list[ProdutoImagemCreate] = []
-    variants: list[ProdutoVarianteCreate] = []
+    images: list[ProdutoImagemCreate] = Field(default_factory=list)
+    variants: list[ProdutoVarianteCreate] = Field(default_factory=list)
 
 
 class ProdutoUpdate(BaseModel):

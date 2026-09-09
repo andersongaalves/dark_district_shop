@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta, timezone
-
 from core.security import (
     create_access_token,
     get_current_user,
@@ -52,8 +50,6 @@ def test_get_current_user(client, db):
     token = create_access_token({
         "sub": usuario.username
     })
-
-    from core.security import get_current_user
 
     current_user = get_current_user(
         token=token,

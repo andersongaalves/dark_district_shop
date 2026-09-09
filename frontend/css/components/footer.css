@@ -73,7 +73,7 @@
 
 .footer-links a:hover,
 .footer-socials a:hover {
-    color: #00d4ff;
+    color: var(--color-cyan);
 }
 
 .footer-socials {

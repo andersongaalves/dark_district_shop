@@ -1,3 +1,4 @@
+import { formatPrice } from "../../utils/format.js";
 import { getWhatsAppUrl } from "../../utils/urls.js";
 import { getSelectedOptions } from "./produto_options.js";
 
@@ -21,9 +22,7 @@ export function setupInterestButton(
             "",
             `Produto: ${product.title}`,
             `ID: ${product.id}`,
-            `Preço: R$ ${Number(product.price)
-                .toFixed(2)
-                .replace(".", ",")}`
+            `Preço: ${formatPrice(product.price)}`
         ];
 
         if (selected.color) {

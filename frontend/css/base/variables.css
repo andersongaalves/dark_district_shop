@@ -11,6 +11,13 @@
     --color-text-muted: #9B979D;
     --color-border: #29262B;
 
+    --color-page-background: #08090c;
+    --color-page-text: #f5f3f0;
+    --color-section-background: #08090D;
+    --color-image-background: #0D0E13;
+    --color-cyan: #00D4FF;
+    --color-selection: #b22af0;
+
     /* Tipografia */
     --font-display: "UnifrakturCook", serif;
     --font-heading: "Cinzel Decorative", serif;

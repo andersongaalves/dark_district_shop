@@ -1,6 +1,6 @@
 import { ROUTES } from "../utils/urls.js";
 import { createProductCard } from "../components/product_card.js";
-import { get } from "../../admin/api.js";
+import { getProducts } from "../api/products_api.js";
 
 export async function renderFeatured() {
     const section = document.querySelector("#featured");
@@ -40,7 +40,7 @@ export async function renderFeatured() {
         section.querySelector(".featured__grid");
 
     try {
-        const products = await get("/produtos");
+        const products = await getProducts();
 
         const featuredProducts = products
             .filter((product) => product.featured)
@@ -51,7 +51,11 @@ export async function renderFeatured() {
                 createProductCard(product)
             );
         });
+        if (!featuredProducts.length) {
+            grid.textContent = "Nenhum destaque disponível no momento.";
+        }
     } catch (error) {
+        grid.textContent = "Não foi possível carregar os destaques.";
         console.error(
             "Erro ao carregar destaques:",
             error

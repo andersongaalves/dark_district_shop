@@ -1,18 +1,21 @@
 import os
+import secrets
 import sys
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+# Always isolate tests from local credentials and databases.
+os.environ["DATABASE_URL"] = "sqlite://"
+os.environ["SECRET_KEY"] = secrets.token_urlsafe(32)
 
 from database import Base, get_db
 from main import app
@@ -20,60 +23,40 @@ from core.security import get_current_user
 from models.usuario import Usuario
 
 
-TEST_DATABASE_URL = "sqlite:///./test.db"
-
-engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-
 @pytest.fixture
 def db():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(connection, _):
+        connection.execute("PRAGMA foreign_keys=ON")
+
     Base.metadata.create_all(bind=engine)
-
-    session = TestingSessionLocal()
-
+    session = sessionmaker(bind=engine, autoflush=False)()
     try:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
 @pytest.fixture
-def client(db):
-    usuario_teste = Usuario(
-        username="usuario_teste",
-        password_hash="senha_teste",
-        active=True
-    )
-
-    db.add(usuario_teste)
-    db.commit()
-    db.refresh(usuario_teste)
-
+def public_client(db):
     def override_get_db():
-        try:
-            yield db
-        finally:
-            pass
-
-    def override_get_current_user():
-        return usuario_teste
-
+        yield db
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_user] = (
-        override_get_current_user
-    )
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
 
-    with TestClient(app) as test_client:
-        yield test_client
 
-    app.dependency_overrides.clear()
+@pytest.fixture
+def client(public_client, db):
+    usuario = Usuario(username="usuario_teste", password_hash="unused-test-hash", active=True)
+    db.add(usuario)
+    db.commit()
+    app.dependency_overrides[get_current_user] = lambda: usuario
+    return public_client

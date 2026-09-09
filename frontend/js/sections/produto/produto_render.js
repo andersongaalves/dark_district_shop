@@ -1,30 +1,17 @@
-import { ROUTES } from "../../utils/urls.js";
-
-import { setupGallery } from "./produto_gallery.js";
-
-import {
-    setupOptions,
-    updateAllOptionAvailability
-} from "./produto_options.js";
-
-import {
-    updateProductAvailability
-} from "./produto_availability.js";
-
-import {
-    setupInterestButton
-} from "./produto_interest.js";
+import { formatPrice } from "../../utils/format.js";
+import { escapeHtml } from "../../utils/dom.js";
+import { ROUTES, getImageUrl } from "../../utils/urls.js";
 
 import {
     renderDescription
 } from "./produto_description.js";
 
 export function renderProduct(section, product) {
-    const mainImage = product.images?.[0]?.url ?? null;
+    const mainImage = getImageUrl(product.images?.[0]?.url);
 
-    const images = product.images?.length
-        ? product.images
-        : [];
+    const images = (product.images ?? [])
+        .map((image) => ({ ...image, url: getImageUrl(image.url) }))
+        .filter((image) => image.url);
 
     const variants = product.variants ?? [];
 
@@ -63,8 +50,8 @@ export function renderProduct(section, product) {
                             mainImage
                                 ? `
                                     <img
-                                        src="${mainImage}"
-                                        alt="${product.title}"
+                                        src="${escapeHtml(mainImage)}"
+                                        alt="${escapeHtml(product.title)}"
                                     >
                                 `
                                 : `
@@ -89,11 +76,11 @@ export function renderProduct(section, product) {
                                                         ? "is-active"
                                                         : ""
                                                 }"
-                                                data-image="${image.url}"
+                                                data-image="${escapeHtml(image.url)}"
                                             >
                                                 <img
-                                                    src="${image.url}"
-                                                    alt="${product.title} - imagem ${index + 1}"
+                                                    src="${escapeHtml(image.url)}"
+                                                    alt="${escapeHtml(product.title)} - imagem ${index + 1}"
                                                 >
                                             </button>
                                         `
@@ -109,21 +96,19 @@ export function renderProduct(section, product) {
                 <div class="produto__info">
 
                     <span class="produto__category">
-                        ${product.category}
+                        ${escapeHtml(product.category)}
                     </span>
 
                     <h1 class="produto__title">
-                        ${product.title}
+                        ${escapeHtml(product.title)}
                     </h1>
 
                     <span class="produto__id">
-                        ID: ${product.id}
+                        ID: ${escapeHtml(product.id)}
                     </span>
 
                     <div class="produto__price">
-                        R$ ${Number(product.price)
-                            .toFixed(2)
-                            .replace(".", ",")}
+                        ${formatPrice(product.price)}
                     </div>
 
                     <details class="produto__description">
@@ -154,9 +139,9 @@ export function renderProduct(section, product) {
                                                     type="button"
                                                     class="produto__option-button"
                                                     data-option="color"
-                                                    data-value="${color}"
+                                                    data-value="${escapeHtml(color)}"
                                                 >
-                                                    ${color}
+                                                    ${escapeHtml(color)}
                                                 </button>
                                             `
                                         ).join("")}
@@ -185,9 +170,9 @@ export function renderProduct(section, product) {
                                                     type="button"
                                                     class="produto__option-button"
                                                     data-option="size"
-                                                    data-value="${size}"
+                                                    data-value="${escapeHtml(size)}"
                                                 >
-                                                    ${size}
+                                                    ${escapeHtml(size)}
                                                 </button>
                                             `
                                         ).join("")}
@@ -218,11 +203,7 @@ export function renderProduct(section, product) {
         </div>
     `;
 
-    setupGallery(section);
-    setupOptions(section, product);
-    updateAllOptionAvailability(section, product);
-    updateProductAvailability(section, product);
-    setupInterestButton(section, product);
+
 }
 
 export function renderNotFound(section) {

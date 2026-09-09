@@ -1,22 +1,14 @@
 .produto {
     min-height: 100vh;
     padding-block: 6rem;
-    background: #08090D;
-}
-
-.produto__container {
-    width: min(
-        100% - (var(--container-padding) * 2),
-        var(--container-width)
-    );
-    margin-inline: auto;
+    background: var(--color-section-background);
 }
 
 .produto__back {
     display: inline-block;
     margin-bottom: 3rem;
     color: var(--color-text-muted);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -42,7 +34,7 @@
 .produto__main-image {
     aspect-ratio: 1 / 1;
     overflow: hidden;
-    background: #0D0E13;
+    background: var(--color-image-background);
 }
 
 .produto__main-image img {
@@ -59,7 +51,7 @@
     width: 100%;
     height: 100%;
     color: var(--color-text-muted);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.15em;
@@ -77,7 +69,7 @@
     aspect-ratio: 1 / 1;
     padding: 0;
     border: 1px solid transparent;
-    background: #0D0E13;
+    background: var(--color-image-background);
     cursor: pointer;
     overflow: hidden;
 }
@@ -99,7 +91,7 @@
 
 .produto__category {
     color: var(--color-primary);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.2em;
@@ -109,7 +101,7 @@
 .produto__title {
     margin: 0.75rem 0 0;
     color: var(--color-text);
-    font-family: "Cinzel Decorative", serif;
+    font-family: var(--font-heading);
     font-size: clamp(2rem, 4vw, 3.5rem);
     line-height: 1.1;
 }
@@ -118,7 +110,7 @@
     display: block;
     margin-top: 0.75rem;
     color: var(--color-text-muted);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.7rem;
     letter-spacing: 0.08em;
 }
@@ -126,7 +118,7 @@
 .produto__price {
     margin-top: 2rem;
     color: var(--color-text);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 1.7rem;
     font-weight: 600;
 }
@@ -144,7 +136,7 @@
     justify-content: space-between;
     padding: 1rem 0;
     color: var(--color-text);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 0.14em;
@@ -172,7 +164,7 @@
 .produto__description-content {
     padding: 0 0 1.5rem;
     color: var(--color-text-muted);
-    font-family: "Cormorant Garamond", serif;
+    font-family: var(--font-editorial);
     font-size: 1.1rem;
     line-height: 1.6;
 }
@@ -190,7 +182,7 @@
 .produto__description-title {
     margin: 0;
     color: var(--color-text);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 0.14em;
@@ -224,7 +216,7 @@
     display: block;
     margin-bottom: 0.75rem;
     color: var(--color-text);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.14em;
@@ -244,7 +236,7 @@
     border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-muted);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -264,7 +256,7 @@
 .produto__option-button.is-active {
     border-color: var(--color-primary);
     background: var(--color-primary);
-    color: #08090D;
+    color: var(--color-section-background);
 }
 
 .produto__option-button:disabled,
@@ -288,7 +280,7 @@
 
 .produto__availability {
     margin-top: 2rem;
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -309,8 +301,8 @@
     padding: 1rem 1.5rem;
     border: 1px solid var(--color-primary);
     background: var(--color-primary);
-    color: #08090D;
-    font-family: "Rajdhani", sans-serif;
+    color: var(--color-section-background);
+    font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 0.15em;
@@ -340,14 +332,14 @@
     min-height: 60vh;
     gap: 1.5rem;
     color: var(--color-text-muted);
-    font-family: "Cormorant Garamond", serif;
+    font-family: var(--font-editorial);
     font-size: 1.3rem;
     text-align: center;
 }
 
 .produto__not-found a {
     color: var(--color-primary);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.1em;

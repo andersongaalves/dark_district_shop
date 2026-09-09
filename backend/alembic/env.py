@@ -8,7 +8,7 @@ from alembic import context
 from database import Base
 from core.config import settings
 
-from models.produto import Produto, ProdutoImagem, ProdutoVariante
+import models  # Register every mapped model, including administrative users.
 
 
 config = context.config

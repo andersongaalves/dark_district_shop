@@ -10,8 +10,9 @@ html {
 
 body {
     min-height: 100vh;
-    background: var(--color-background);
-    color: var(--color-text);
+    overflow-x: hidden;
+    background: var(--color-page-background);
+    color: var(--color-page-text);
 }
 
 img {
@@ -39,4 +40,8 @@ a {
 ul,
 ol {
     list-style: none;
+}
+::selection {
+    background: var(--color-selection);
+    color: #fff;
 }

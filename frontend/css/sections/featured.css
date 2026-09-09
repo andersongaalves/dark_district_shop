@@ -1,14 +1,6 @@
 .featured {
     padding-block: 6rem;
-    background: #08090D;
-}
-
-.featured__container {
-    width: min(
-        100% - (var(--container-padding) * 2),
-        var(--container-width)
-    );
-    margin-inline: auto;
+    background: var(--color-section-background);
 }
 
 .featured__header {
@@ -23,7 +15,7 @@
     display: block;
     margin-bottom: 0.5rem;
     color: var(--color-primary);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.25em;
@@ -33,7 +25,7 @@
 .featured__title {
     margin: 0;
     color: var(--color-text);
-    font-family: "Cinzel Decorative", serif;
+    font-family: var(--font-heading);
     font-size: clamp(1.8rem, 3vw, 2.6rem);
     line-height: 1.1;
 }
@@ -41,7 +33,7 @@
 .featured__link {
     flex-shrink: 0;
     color: var(--color-text-muted);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.85rem;
     font-weight: 600;
     letter-spacing: 0.12em;

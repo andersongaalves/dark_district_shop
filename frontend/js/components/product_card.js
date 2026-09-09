@@ -1,4 +1,7 @@
-import { getProductUrl } from "../utils/urls.js";
+import { isProductAvailable } from "../core/products.js";
+import { formatPrice } from "../utils/format.js";
+import { escapeHtml } from "../utils/dom.js";
+import { getProductUrl, getImageUrl } from "../utils/urls.js";
 
 export function createProductCard(product) {
     const card = document.createElement("article");
@@ -6,18 +9,18 @@ export function createProductCard(product) {
     card.className = "product-card";
     card.dataset.productId = product.id;
 
-    const availability = product.available
+    const availability = isProductAvailable(product)
         ? "Disponível"
         : "Indisponível";
 
-    const image = product.images?.[0]?.url ?? null;
+    const image = getImageUrl(product.images?.[0]?.url);
     const productUrl = getProductUrl(product.id);
 
     const imageContent = image
         ? `
             <img
-                src="${image}"
-                alt="${product.title}"
+                src="${escapeHtml(image)}"
+                alt="${escapeHtml(product.title)}"
                 loading="lazy"
             >
         `
@@ -40,19 +43,17 @@ export function createProductCard(product) {
         <div class="product-card__content">
 
             <span class="product-card__category">
-                ${product.category}
+                ${escapeHtml(product.category)}
             </span>
 
             <h3 class="product-card__name">
-                ${product.title}
+                ${escapeHtml(product.title)}
             </h3>
 
             <div class="product-card__bottom">
 
                 <span class="product-card__price">
-                    R$ ${Number(product.price)
-                        .toFixed(2)
-                        .replace(".", ",")}
+                    ${formatPrice(product.price)}
                 </span>
 
                 <span class="product-card__availability">

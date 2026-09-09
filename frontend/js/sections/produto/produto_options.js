@@ -1,3 +1,5 @@
+import { isProductAvailable } from "../../core/products.js";
+
 export function setupOptions(section, product, onChange) {
     const optionButtons = section.querySelectorAll(
         ".produto__option-button"
@@ -42,7 +44,6 @@ export function updateAllOptionAvailability(
     const buttons = section.querySelectorAll(
         ".produto__option-button"
     );
-    const variants = product.variants ?? [];
 
     buttons.forEach((button) => {
         const option = button.dataset.option;
@@ -53,25 +54,7 @@ export function updateAllOptionAvailability(
             [option]: value
         };
 
-        const hasStock = variants.some(
-            (variant) => {
-                if (
-                    testSelection.color &&
-                    variant.color !== testSelection.color
-                ) {
-                    return false;
-                }
-
-                if (
-                    testSelection.size &&
-                    variant.size !== testSelection.size
-                ) {
-                    return false;
-                }
-
-                return variant.quantity > 0;
-            }
-        );
+        const hasStock = isProductAvailable(product, testSelection);
 
         button.disabled = !hasStock;
 

@@ -1,3 +1,4 @@
+import { escapeHtml } from "../../utils/dom.js";
 export function renderDescription(description) {
     if (!description) {
         return "";
@@ -42,7 +43,7 @@ export function renderDescription(description) {
             const title = section.title
                 ? `
                     <h3 class="produto__description-title">
-                        ${section.title}
+                        ${escapeHtml(section.title)}
                     </h3>
                 `
                 : "";
@@ -53,7 +54,7 @@ export function renderDescription(description) {
                         ${section.items.map(
                             (item) => `
                                 <li>
-                                    ${item}
+                                    ${escapeHtml(item)}
                                 </li>
                             `
                         ).join("")}

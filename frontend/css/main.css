@@ -10,10 +10,6 @@
 @import url("./components/footer.css");
 @import url("./sections/sobre.css");
 
-body {
-    overflow-x: hidden;
-}
-
 .container {
     width: min(100% - (var(--container-padding) * 2), var(--container-width));
     margin-inline: auto;

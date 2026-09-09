@@ -1,19 +1,26 @@
-import { postForm } from "./api.js";
+import { request } from "../js/core/api.js";
+
+const TOKEN_KEY = "access_token";
+
+export function getToken() {
+    return localStorage.getItem(TOKEN_KEY);
+}
 
 export async function login(
     username,
     password
 ) {
-    const data = await postForm(
+    const data = await request(
         "/auth/login",
         {
-            username,
-            password
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({ username, password })
         }
     );
 
     localStorage.setItem(
-        "access_token",
+        TOKEN_KEY,
         data.access_token
     );
 
@@ -22,14 +29,10 @@ export async function login(
 
 export function logout() {
     localStorage.removeItem(
-        "access_token"
+        TOKEN_KEY
     );
 }
 
 export function isAuthenticated() {
-    return Boolean(
-        localStorage.getItem(
-            "access_token"
-        )
-    );
+    return Boolean(getToken());
 }

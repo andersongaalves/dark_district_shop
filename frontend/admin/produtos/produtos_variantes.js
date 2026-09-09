@@ -1,3 +1,4 @@
+import { escapeHtml } from "../../js/utils/dom.js";
 export function renderVariants(variants = []) {
     if (!variants.length) {
         return `
@@ -17,21 +18,21 @@ export function renderVariants(variants = []) {
                     <input
                         type="text"
                         name="variant-size"
-                        value="${variant.size ?? ""}"
+                        value="${escapeHtml(variant.size ?? "")}"
                         placeholder="Tamanho"
                     >
 
                     <input
                         type="text"
                         name="variant-color"
-                        value="${variant.color ?? ""}"
+                        value="${escapeHtml(variant.color ?? "")}"
                         placeholder="Cor"
                     >
 
                     <input
                         type="number"
                         name="variant-quantity"
-                        value="${variant.quantity ?? 0}"
+                        value="${escapeHtml(variant.quantity ?? 0)}"
                         min="0"
                         placeholder="Quantidade"
                     >
@@ -57,39 +58,9 @@ export function addVariant(container) {
     const element =
         document.createElement("div");
 
-    element.className =
-        "admin-modal__variant";
-
-    element.dataset.variantIndex = index;
-
-    element.innerHTML = `
-        <input
-            type="text"
-            name="variant-size"
-            placeholder="Tamanho"
-        >
-
-        <input
-            type="text"
-            name="variant-color"
-            placeholder="Cor"
-        >
-
-        <input
-            type="number"
-            name="variant-quantity"
-            min="0"
-            value="0"
-            placeholder="Quantidade"
-        >
-
-        <button
-            type="button"
-            data-remove-variant
-        >
-            ×
-        </button>
-    `;
+    element.innerHTML = renderVariants([{ size: "", color: "", quantity: 0 }]);
+    const row = element.firstElementChild;
+    row.dataset.variantIndex = index;
 
     container
         .querySelector(
@@ -97,11 +68,11 @@ export function addVariant(container) {
         )
         ?.remove();
 
-    container.appendChild(element);
+    container.appendChild(row);
 
     setupVariantRemoval(container);
 
-    element
+    row
         .querySelector('[name="variant-size"]')
         ?.focus();
 }
@@ -130,11 +101,7 @@ export function setupVariantRemoval(container) {
                             "[data-variant-index]"
                         )
                     ) {
-                        container.innerHTML = `
-                            <div class="admin-modal__empty">
-                                Nenhuma variação adicionada.
-                            </div>
-                        `;
+                        container.innerHTML = renderVariants([]);
                     }
                 }
             );

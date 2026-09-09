@@ -1,15 +1,7 @@
 .catalogo {
     min-height: 100vh;
     padding-block: 7rem;
-    background: #08090D;
-}
-
-.catalogo__container {
-    width: min(
-        100% - (var(--container-padding) * 2),
-        var(--container-width)
-    );
-    margin-inline: auto;
+    background: var(--color-section-background);
 }
 
 .catalogo__header {
@@ -20,7 +12,7 @@
     display: block;
     margin-bottom: 0.6rem;
     color: var(--color-primary);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.25em;
@@ -30,7 +22,7 @@
 .catalogo__title {
     margin: 0;
     color: var(--color-text);
-    font-family: "Cinzel Decorative", serif;
+    font-family: var(--font-heading);
     font-size: clamp(2.2rem, 5vw, 4rem);
     line-height: 1.1;
 }
@@ -39,7 +31,7 @@
     max-width: 500px;
     margin: 1rem 0 0;
     color: var(--color-text-muted);
-    font-family: "Cormorant Garamond", serif;
+    font-family: var(--font-editorial);
     font-size: 1.15rem;
     line-height: 1.6;
 }
@@ -66,7 +58,7 @@
     border: 1px solid transparent;
     background: transparent;
     color: var(--color-text-muted);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.12em;
@@ -91,7 +83,7 @@
 .catalogo__count {
     flex-shrink: 0;
     color: var(--color-text-muted);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--font-body);
     font-size: 0.75rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -107,7 +99,7 @@
     display: none;
     padding-block: 5rem;
     color: var(--color-text-muted);
-    font-family: "Cormorant Garamond", serif;
+    font-family: var(--font-editorial);
     font-size: 1.2rem;
     text-align: center;
 }

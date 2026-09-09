@@ -8,8 +8,11 @@ export const ROUTES = {
     home: new URL("index.html", FRONTEND_URL).href,
     catalogo: new URL("pages/catalogo/index.html", FRONTEND_URL).href,
     brecho: new URL("pages/brecho/index.html", FRONTEND_URL).href,
-    drops: new URL("pages/brecho/index.html", FRONTEND_URL).href,
-    sobre: new URL("pages/sobre/index.html", FRONTEND_URL).href
+    drops: new URL("pages/drops/index.html", FRONTEND_URL).href,
+    sobre: new URL("pages/sobre/index.html", FRONTEND_URL).href,
+    destaques: new URL("index.html#destaques", FRONTEND_URL).href,
+    admin: new URL("admin/index.html", FRONTEND_URL).href,
+    login: new URL("admin/login/index.html", FRONTEND_URL).href
 
 };
 
@@ -24,12 +27,22 @@ export function getProductUrl(productId) {
     return url.href;
 }
 
-export function getWhatsAppUrl(message) {
+export function getWhatsAppUrl(message = "") {
     const url = new URL(
         `https://wa.me/${CONTACTS.whatsapp}`
     );
 
-    url.searchParams.set("text", message);
+    if (message) url.searchParams.set("text", message);
 
     return url.href;
+}
+
+export function getImageUrl(value) {
+    if (typeof value !== "string" || !value.trim()) return null;
+    try {
+        const url = new URL(value, FRONTEND_URL);
+        return ["http:", "https:"].includes(url.protocol) ? url.href : null;
+    } catch {
+        return null;
+    }
 }

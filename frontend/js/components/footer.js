@@ -1,7 +1,8 @@
-import { ROUTES } from "../utils/urls.js";
+import { ROUTES, getWhatsAppUrl } from "../utils/urls.js";
 
 export function renderFooter() {
-    const footer = document.createElement("footer");
+    const footer = document.querySelector("#footer") || document.createElement("footer");
+    footer.id = "footer";
     footer.className = "site-footer";
 
     const logoUrl = new URL(
@@ -29,7 +30,7 @@ export function renderFooter() {
 
                     <ul class="footer-links">
                         <li><a href="${ROUTES.catalogo}">Catálogo</a></li>
-                        <li><a href="/frontend/#destaques">Destaques</a></li>
+                        <li><a href="${ROUTES.destaques}">Destaques</a></li>
                     </ul>
                 </div>
 
@@ -38,7 +39,7 @@ export function renderFooter() {
 
                     <ul class="footer-links">
                         <li>
-                            <a href="https://wa.me/" target="_blank" rel="noopener noreferrer">
+                            <a href="${getWhatsAppUrl()}" target="_blank" rel="noopener noreferrer">
                                 WhatsApp
                             </a>
                         </li>
@@ -57,6 +58,9 @@ export function renderFooter() {
                         <a href="https://br.pinterest.com/Dark_District/" target="_blank" rel="noopener noreferrer">
                             Pinterest
                         </a>
+                        <a href="${getWhatsAppUrl()}" target="_blank" rel="noopener noreferrer">
+                            WhatsApp
+                        </a>
                     </div>
                 </div>
             </div>
@@ -73,5 +77,5 @@ export function renderFooter() {
         </div>
     `;
 
-    document.body.appendChild(footer);
+    if (!footer.isConnected) document.body.appendChild(footer);
 } 

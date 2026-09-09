@@ -5,7 +5,7 @@
     display: flex;
     align-items: stretch;
     overflow: hidden;
-    background-color: #08090D;
+    background-color: var(--color-section-background);
     background-image:
         linear-gradient(
             90deg,
@@ -41,7 +41,7 @@
 
 .hero__eyebrow {
     margin-bottom: 1.25rem;
-    color: #8B5CF6;
+    color: var(--color-primary);
     font-family: var(--font-body);
     font-size: 0.75rem;
     font-weight: 600;
@@ -86,7 +86,7 @@
     justify-content: center;
     min-height: 50px;
     padding: 0.85rem 1.5rem;
-    border: 1px solid #8B5CF6;
+    border: 1px solid var(--color-primary);
     border-radius: 0;
     background: rgba(8, 9, 13, 0.22);
     color: #F5F5F5;
@@ -102,7 +102,7 @@
 }
 
 .hero__button:hover {
-    border-color: #00D4FF;
+    border-color: var(--color-cyan);
     background: rgba(139, 92, 246, 0.14);
     color: #ffffff;
 }
@@ -133,7 +133,7 @@
                 180deg,
                 rgba(8, 9, 13, 0.08) 0%,
                 rgba(8, 9, 13, 0.44) 44%,
-                #08090D 86%
+                var(--color-section-background) 86%
             ),
             linear-gradient(
                 90deg,

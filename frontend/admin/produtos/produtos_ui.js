@@ -1,3 +1,12 @@
+import { formatPrice } from "../../js/utils/format.js";
+import { escapeHtml } from "../../js/utils/dom.js";
+
+export function renderProdutosError(message, onRetry) {
+    const container = document.querySelector("#admin-produtos");
+    if (!container) return;
+    container.innerHTML = `<p role="alert">${escapeHtml(message)}</p><button type="button">Tentar novamente</button>`;
+    container.querySelector("button").addEventListener("click", onRetry);
+}
 export function renderProdutos(
     produtos,
     actions = {}
@@ -45,27 +54,24 @@ export function renderProdutos(
 }
 
 function renderProduto(produto) {
-    const preco = Number(produto.price || 0)
-        .toFixed(2)
-        .replace(".", ",");
 
     return `
         <article
             class="admin-produto"
-            data-id="${produto.id}"
+            data-id="${escapeHtml(produto.id)}"
         >
             <div>
                 <strong>
-                    ${produto.title}
+                    ${escapeHtml(produto.title)}
                 </strong>
 
                 <span>
-                    ID: ${produto.id}
+                    ID: ${escapeHtml(produto.id)}
                 </span>
             </div>
 
             <span>
-                R$ ${preco}
+                ${formatPrice(produto.price)}
             </span>
 
             <span>
@@ -78,7 +84,7 @@ function renderProduto(produto) {
                 <button
                     type="button"
                     data-action="edit"
-                    data-id="${produto.id}"
+                    data-id="${escapeHtml(produto.id)}"
                 >
                     Editar
                 </button>
@@ -86,7 +92,7 @@ function renderProduto(produto) {
                 <button
                     type="button"
                     data-action="delete"
-                    data-id="${produto.id}"
+                    data-id="${escapeHtml(produto.id)}"
                 >
                     Excluir
                 </button>
