@@ -11,6 +11,7 @@ body {
 
 button,
 input,
+select,
 textarea {
     font: inherit;
 }
@@ -104,6 +105,7 @@ button {
 .admin-produto div:last-child {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .admin-produto button {
@@ -182,6 +184,7 @@ button {
 }
 
 .admin-modal__field input,
+.admin-modal__field select,
 .admin-modal__field textarea {
     width: 100%;
     padding: 10px;
@@ -244,4 +247,25 @@ button {
     .admin-produto div:last-child {
         justify-content: flex-start;
     }
+}
+
+[hidden] { display: none !important; }
+.admin-nav { display: grid; gap: 16px; margin-bottom: 32px; }
+.admin-nav > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.admin-nav strong { min-width: 120px; }
+.admin-nav a { padding: 10px 14px; color: #ccc; text-decoration: none; border-radius: 4px; }
+.admin-nav a[aria-current] { background: #7c3aed; color: white; }
+.admin-configuracoes { display: grid; grid-template-columns: minmax(240px, 1fr) 2fr; gap: 32px; margin-top: 24px; }
+.admin-configuracoes fieldset { display: grid; gap: 16px; border: 0; padding: 0; min-width: 0; }
+.admin-configuracoes__list { display: grid; gap: 12px; align-content: start; }
+.admin-configuracoes__list .admin-produto { grid-template-columns: 1fr; overflow-wrap: anywhere; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+[role="alert"], [data-config-status] { color: #ffadad; }
+.admin-modal__variant { display: grid; grid-template-columns: 1fr 1fr 90px auto; gap: 8px; margin-bottom: 8px; }
+.admin-modal__variant input { min-width: 0; }
+.admin-modal__image { display: flex; gap: 8px; margin-bottom: 8px; }
+@media (max-width: 700px) {
+    .admin-configuracoes { grid-template-columns: 1fr; }
+    .admin-modal__variant { grid-template-columns: 1fr 1fr; }
+    .admin-nav strong { width: 100%; }
 }

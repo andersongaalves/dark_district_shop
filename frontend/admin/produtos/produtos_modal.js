@@ -4,7 +4,7 @@ import { addVariant, setupVariantRemoval, getVariants } from "./produtos_variant
 
 let activeModal;
 
-export function openProductModal({ produto = null, onSubmit }) {
+export function openProductModal({ produto = null, categories = [], collections = [], type = "catalogo", onSubmit }) {
     activeModal?.remove();
     const modal = document.createElement("div");
     activeModal = modal;
@@ -12,7 +12,7 @@ export function openProductModal({ produto = null, onSubmit }) {
     modal.setAttribute("role", "dialog");
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-label", produto ? "Editar produto" : "Novo produto");
-    modal.innerHTML = renderProductForm(produto);
+    modal.innerHTML = renderProductForm(produto, { categories, collections, type });
     document.body.appendChild(modal);
 
     const form = modal.querySelector("#produto-form");
@@ -44,10 +44,13 @@ export function openProductModal({ produto = null, onSubmit }) {
             title: data.get("title"),
             description: data.get("description"),
             price: Number(data.get("price")),
-            category: data.get("category"),
+            category_id: Number(data.get("category_id")),
+            collection_id: data.get("collection_id") ? Number(data.get("collection_id")) : null,
+            product_type: data.get("product_type") || type,
             gender: data.get("gender") || "",
             available: data.get("available") === "on",
             featured: data.get("featured") === "on",
+            is_offer: data.get("is_offer") === "on",
             images: getImages(images),
             variants: getVariants(variants)
         };

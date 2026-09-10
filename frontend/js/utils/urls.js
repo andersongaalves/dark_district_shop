@@ -27,6 +27,11 @@ export function getProductUrl(productId) {
     return url.href;
 }
 
+export function getProductListUrl(type) {
+    const routes = { catalogo: ROUTES.catalogo, brecho: ROUTES.brecho, drop: ROUTES.drops };
+    return Object.hasOwn(routes, type) ? routes[type] : ROUTES.catalogo;
+}
+
 export function getWhatsAppUrl(message = "") {
     const url = new URL(
         `https://wa.me/${CONTACTS.whatsapp}`

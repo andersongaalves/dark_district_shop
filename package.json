@@ -4,5 +4,8 @@
   "type": "module",
   "scripts": {
     "test:frontend": "node --test tests/frontend/*.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1"
   }
 }

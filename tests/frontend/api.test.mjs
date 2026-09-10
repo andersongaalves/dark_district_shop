@@ -14,7 +14,8 @@ test("public API never reads or forwards administrative credentials", async (t) 
 });
 
 test("404 becomes null only for product detail and IDs are encoded", async (t) => {
-    t.mock.method(globalThis, "fetch", async (url) => {
+    t.mock.method(globalThis, "fetch", async (url, options) => {
+        assert.equal(options.cache, "no-store");
         assert.ok(url.endsWith("/produtos/a%20%26%3F%23"));
         return Response.json({ detail: "Produto não encontrado." }, { status: 404 });
     });

@@ -30,6 +30,10 @@ export function put(endpoint, data) {
     return adminRequest(endpoint, { method: "PUT", body: JSON.stringify(data) });
 }
 
+export function patch(endpoint, data) {
+    return adminRequest(endpoint, { method: "PATCH", body: JSON.stringify(data) });
+}
+
 export function deleteRequest(endpoint) {
     return adminRequest(endpoint, { method: "DELETE" });
 }

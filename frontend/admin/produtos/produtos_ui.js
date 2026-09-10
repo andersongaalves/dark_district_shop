@@ -19,7 +19,7 @@ export function renderProdutos(
 
     container.innerHTML = `
         <div class="admin-produtos__header">
-            <h1>Produtos</h1>
+            <h1>${escapeHtml(actions.title ?? "Produtos")}</h1>
 
             <button
                 type="button"

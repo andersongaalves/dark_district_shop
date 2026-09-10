@@ -11,7 +11,7 @@ test("failed saves retain form data, prevent duplicate requests, and allow retry
     const emptyCollection = { querySelectorAll: () => [] };
     const fieldValues = new Map([
         ["id", "item"], ["title", "Produto"], ["description", "Descrição"],
-        ["price", "10"], ["category", "Teste"], ["gender", ""],
+        ["price", "10"], ["category_id", "3"], ["product_type", "brecho"], ["gender", ""],
         ["available", "on"], ["featured", "on"]
     ]);
     const form = {
@@ -45,6 +45,9 @@ test("failed saves retain form data, prevent duplicate requests, and allow retry
         assert.equal(payload.gender, "");
         assert.equal(payload.price, 10);
         assert.equal(payload.featured, true);
+        assert.equal(payload.category_id, 3);
+        assert.equal(payload.collection_id, null);
+        assert.equal(payload.product_type, "brecho");
         if (attempts === 1) return new Promise((_resolve, reject) => { rejectSave = reject; });
     } });
     const event = { preventDefault() {} };

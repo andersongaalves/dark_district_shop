@@ -75,12 +75,14 @@ test("CSS custom properties have definitions", async () => {
 
 test("URLs work at a hosting root and under a local frontend subdirectory", async () => {
     const source = await readFile(path.join(root, "js/utils/urls.js"), "utf8");
-    for (const base of ["https://example.com/", "http://localhost:5500/frontend/"]) {
+    for (const base of ["https://darkdistrict.com.br/", "http://localhost:5500/", "http://localhost:5500/frontend/"]) {
         const moduleUrl = `${base}js/utils/urls.js`;
         const simulated = source.replaceAll("import.meta.url", JSON.stringify(moduleUrl));
         const urls = await import(`data:text/javascript;base64,${Buffer.from(simulated).toString("base64")}`);
         assert.equal(urls.ROUTES.catalogo, `${base}pages/catalogo/index.html`);
         assert.equal(urls.ROUTES.drops, `${base}pages/drops/index.html`);
+        assert.equal(urls.getProductListUrl("brecho"), `${base}pages/brecho/index.html`);
+        assert.equal(urls.getProductListUrl("drop"), `${base}pages/drops/index.html`);
         assert.equal(urls.ROUTES.destaques, `${base}index.html#destaques`);
         assert.equal(urls.getImageUrl("assets/images/products/image.webp"), `${base}assets/images/products/image.webp`);
     }

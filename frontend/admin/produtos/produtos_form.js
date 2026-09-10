@@ -1,8 +1,14 @@
 import { escapeHtml } from "../../js/utils/dom.js";
 import { renderImages } from "./produtos_imagens.js";
 import { renderVariants } from "./produtos_variantes.js";
+import { PRODUCT_TYPES } from "../../js/core/products.js";
 
-export function renderProductForm(produto) {
+function recordOptions(records, selectedId) {
+    return records.filter((record) => record.active || record.id === selectedId)
+        .map((record) => `<option value="${escapeHtml(record.id)}" ${record.id === selectedId ? "selected" : ""}>${escapeHtml(record.name) || "Sem nome"}${record.active ? "" : " (desativada)"}</option>`).join("");
+}
+
+export function renderProductForm(produto, { categories = [], collections = [], type = "catalogo" } = {}) {
     const images = produto?.images ?? [];
     const variants = produto?.variants ?? [];
     return `
@@ -83,16 +89,25 @@ export function renderProductForm(produto) {
                 </div>
 
                 <div class="admin-modal__field">
-                    <label for="produto-category">
-                        Categoria
-                    </label>
-
-                    <input
-                        id="produto-category"
-                        name="category"
-                        value="${escapeHtml(produto?.category)}"
-                        required
-                    >
+                    <label for="produto-type">Tipo</label>
+                    <select id="produto-type" name="product_type" required>
+                        ${Object.entries(PRODUCT_TYPES).map(([value, label]) => `<option value="${value}" ${value === (produto?.product_type ?? type) ? "selected" : ""}>${label}</option>`).join("")}
+                    </select>
+                </div>
+                <div class="admin-modal__field">
+                    <label for="produto-category">Categoria</label>
+                    <select id="produto-category" name="category_id" required>
+                        <option value="">Selecione uma categoria</option>
+                        ${recordOptions(categories, produto?.category_id)}
+                    </select>
+                    ${categories.some((record) => record.active || record.id === produto?.category_id) ? "" : "<small>Cadastre uma categoria ativa em Configurações antes de salvar.</small>"}
+                </div>
+                <div class="admin-modal__field">
+                    <label for="produto-collection">Coleção</label>
+                    <select id="produto-collection" name="collection_id">
+                        <option value="">Sem coleção</option>
+                        ${recordOptions(collections, produto?.collection_id)}
+                    </select>
                 </div>
 
                 <div class="admin-modal__field">
@@ -128,6 +143,8 @@ export function renderProductForm(produto) {
                     >
                     Destaque
                 </label>
+
+                <label><input type="checkbox" name="is_offer" ${produto?.is_offer ? "checked" : ""}> Produto em oferta</label>
 
                 <div class="admin-modal__field">
 

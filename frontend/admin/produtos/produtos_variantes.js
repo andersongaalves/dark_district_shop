@@ -15,6 +15,7 @@ export function renderVariants(variants = []) {
                     class="admin-modal__variant"
                     data-variant-index="${index}"
                 >
+                    <input type="hidden" name="variant-id" value="${escapeHtml(variant.id ?? "")}">
                     <input
                         type="text"
                         name="variant-size"
@@ -114,6 +115,8 @@ export function getVariants(container) {
             "[data-variant-index]"
         )
     ].map((variant) => ({
+        ...(variant.querySelector('[name="variant-id"]')?.value
+            ? { id: Number(variant.querySelector('[name="variant-id"]').value) } : {}),
         size:
             variant
                 .querySelector(
