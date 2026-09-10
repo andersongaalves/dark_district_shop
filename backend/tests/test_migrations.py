@@ -20,7 +20,8 @@ def test_migrations_match_models_on_fresh_database(tmp_path, monkeypatch):
     engine = create_engine(database_url)
     try:
         assert set(inspect(engine).get_table_names()) == {
-            "alembic_version", "produtos", "usuarios", "produto_imagens", "produto_variantes", "categorias", "colecoes"
+            "alembic_version", "produtos", "usuarios", "produto_imagens", "produto_variantes", "categorias", "colecoes",
+            "customers", "channel_identities", "conversations", "messages", "delivery_jobs",
         }
         with engine.connect() as connection:
             context = MigrationContext.configure(connection)

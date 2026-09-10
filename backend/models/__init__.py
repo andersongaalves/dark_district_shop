@@ -5,6 +5,7 @@ from models.produto import (
 )
 from models.usuario import Usuario
 from models.catalog import Category, Collection
+from models.atendimento import Customer, ChannelIdentity, Conversation, Message, DeliveryJob
 
 __all__ = [
     "Produto",
@@ -13,4 +14,5 @@ __all__ = [
     "Usuario",
     "Category",
     "Collection",
+    "Customer", "ChannelIdentity", "Conversation", "Message", "DeliveryJob",
 ]

@@ -6,6 +6,7 @@ import { renderFooter } from "../../components/footer.js";
 import { renderHeader } from "../../components/header.js";
 import { getProduct } from "../../api/products_api.js";
 import { getCart } from "../../cart/cart.js";
+import { initChat } from "../../chat/chat.js";
 
 import {
     renderProduct,
@@ -79,4 +80,5 @@ document.addEventListener("DOMContentLoaded", () => {
     renderHeader();
     renderFooter();
     renderProduto();
+    initChat();
 });

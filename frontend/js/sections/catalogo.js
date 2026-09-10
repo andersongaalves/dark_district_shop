@@ -2,6 +2,7 @@ import { renderHeader } from "../components/header.js";
 import { renderFooter } from "../components/footer.js";
 import { getProducts } from "../api/products_api.js";
 import { PRODUCT_TYPES } from "../core/products.js";
+import { initChat } from "../chat/chat.js";
 import {
     renderCatalogoLayout,
     renderCategoryFilters,
@@ -31,4 +32,5 @@ document.addEventListener("DOMContentLoaded", () => {
     renderHeader();
     renderFooter();
     renderCatalogo();
+    initChat();
 });

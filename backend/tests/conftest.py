@@ -16,6 +16,13 @@ if str(ROOT_DIR) not in sys.path:
 # Always isolate tests from local credentials and databases.
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["SECRET_KEY"] = secrets.token_urlsafe(32)
+# External integrations are opt-in in tests regardless of the operator's environment.
+os.environ["LLM_PROVIDER"] = "disabled"
+os.environ["WHATSAPP_ENABLED"] = "false"
+os.environ["LLM_API_KEY"] = ""
+os.environ["WHATSAPP_ACCESS_TOKEN"] = ""
+os.environ["META_APP_SECRET"] = ""
+os.environ["WHATSAPP_VERIFY_TOKEN"] = ""
 
 from database import Base, get_db
 from main import app
@@ -45,6 +52,12 @@ def db():
 
 @pytest.fixture
 def public_client(db, monkeypatch):
+    monkeypatch.setattr(settings, "CHAT_ENABLED", True)
+    for name, attempts, window in [
+        ("chat_ip_limiter", 60, 60), ("chat_creation_limiter", 10, 3600),
+        ("chat_session_limiter", 15, 60), ("chat_global_limiter", 120, 60),
+    ]:
+        monkeypatch.setattr(app.state, name, LoginRateLimiter(attempts=attempts, window_seconds=window))
     monkeypatch.setattr(app.state, "login_limiter", LoginRateLimiter(
         attempts=settings.LOGIN_ATTEMPTS, window_seconds=settings.LOGIN_WINDOW_SECONDS
     ))

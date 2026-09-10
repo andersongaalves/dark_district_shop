@@ -60,9 +60,11 @@ class RequestSecurityMiddleware:
         if root_path and request_path.startswith(root_path + "/"):
             request_path = request_path[len(root_path):]
         is_login = request_path.rstrip("/") == "/auth/login"
+        is_chat = request_path.startswith("/api/chat/")
+        private_response = is_login or is_chat or request_path.startswith("/admin/conversations") or request_path.startswith("/webhooks/whatsapp")
 
         async def secure_send(message):
-            if is_login and message["type"] == "http.response.start":
+            if private_response and message["type"] == "http.response.start":
                 message = {**message, "headers": [
                     (key, value) for key, value in message.get("headers", [])
                     if key.lower() not in {b"cache-control", b"pragma"}
@@ -72,6 +74,19 @@ class RequestSecurityMiddleware:
         async def reject(status, detail, headers=None):
             response = JSONResponse({"detail": detail}, status_code=status, headers=headers)
             await response(scope, receive, secure_send)
+
+        if is_chat and scope["method"] != "OPTIONS":
+            client = scope.get("client")
+            address = client[0] if client else "unknown"
+            limiter = scope["app"].state.chat_ip_limiter
+            retry = limiter.retry_after(address)
+            if retry is None and scope["method"] == "POST":
+                retry = scope["app"].state.chat_global_limiter.retry_after("all")
+            if retry is None and request_path.rstrip("/") == "/api/chat/sessions" and scope["method"] == "POST":
+                retry = scope["app"].state.chat_creation_limiter.retry_after(address)
+            if retry is not None:
+                await reject(429, "Muitas solicitações de atendimento. Aguarde antes de tentar novamente.", {"Retry-After": str(retry)})
+                return
 
         # A trailing-slash request redirects to the canonical route: count it once.
         if request_path == "/auth/login" and scope["method"] == "POST":
@@ -88,6 +103,8 @@ class RequestSecurityMiddleware:
             return
 
         limit = self.max_login_body_bytes if is_login else self.max_body_bytes
+        if is_chat:
+            limit = min(limit, 16384)
         lengths = [value for key, value in scope["headers"] if key.lower() == b"content-length"]
         if lengths:
             if len(lengths) != 1 or not lengths[0].isdigit() or len(lengths[0]) > 20:

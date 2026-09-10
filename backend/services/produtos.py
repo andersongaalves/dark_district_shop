@@ -1,7 +1,7 @@
 from secrets import token_hex
 from datetime import datetime, timezone
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -22,12 +22,44 @@ def listar_produtos(db: Session, **filters) -> list[Produto]:
     for field in ("product_type", "category_id", "collection_id", "featured", "is_offer", "available"):
         if filters.get(field) is not None:
             query = query.filter(getattr(Produto, field) == filters[field])
+    active = and_(Produto.is_offer.is_(True), or_(
+        Produto.offer_ends_at.is_(None), Produto.offer_ends_at > datetime.now(timezone.utc)
+    ))
     if filters.get("offer_active") is not None:
-        active = and_(Produto.is_offer.is_(True), or_(
-            Produto.offer_ends_at.is_(None), Produto.offer_ends_at > datetime.now(timezone.utc)
-        ))
         query = query.filter(active if filters["offer_active"] else ~active)
-    return query.order_by(Produto.created_at.desc(), Produto.id).all()
+    if filters.get("query"):
+        # Literal substring searches: user input cannot add SQL wildcards or SQL.
+        for word in filters["query"].strip().split()[:12]:
+            query = query.filter(or_(
+                Produto.title.icontains(word, autoescape=True),
+                Produto.description.icontains(word, autoescape=True),
+                Produto.id.icontains(word, autoescape=True),
+            ))
+    if filters.get("category_name"):
+        query = query.filter(Produto.category.icontains(filters["category_name"], autoescape=True))
+    if filters.get("product_ids") is not None:
+        query = query.filter(Produto.id.in_(filters["product_ids"]))
+    if filters.get("max_price") is not None:
+        effective_price = case(
+            (and_(active, Produto.offer_price.is_not(None)), Produto.offer_price),
+            else_=Produto.price,
+        )
+        query = query.filter(effective_price <= filters["max_price"])
+    variant_filters = []
+    for field in ("size", "color"):
+        if filters.get(field):
+            variant_filters.append(func.lower(getattr(ProdutoVariante, field)) == filters[field].lower())
+    if variant_filters:
+        # A single EXISTS is essential: size and color belong to the SAME variant.
+        query = query.filter(Produto.variants.any(and_(ProdutoVariante.quantity > 0, *variant_filters)))
+    if filters.get("in_stock"):
+        query = query.filter(Produto.available.is_(True), or_(
+            ~Produto.variants.any(), Produto.variants.any(ProdutoVariante.quantity > 0)
+        ))
+    query = query.order_by(Produto.created_at.desc(), Produto.id)
+    if filters.get("limit") is not None:
+        query = query.limit(max(1, min(int(filters["limit"]), 50)))
+    return query.all()
 
 
 def obter_produto(db: Session, produto_id: str) -> Produto | None:
