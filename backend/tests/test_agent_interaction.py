@@ -77,7 +77,7 @@ def test_confirmed_correction_reaches_provider_with_preserved_product_id(monkeyp
         assert "camiseta" in messages[-1]["content"]
         return Plan([ToolCall("consultar_faq", {"topic": "compra"})])
     monkeypatch.setattr(ai_agent, "get_provider", lambda: SimpleNamespace(enabled=True, plan=plan))
-    suggestion = ai_agent.respond(None, incoming("Tem camissta CR-000-001?"))
+    suggestion = ai_agent.respond(None, incoming("Quero camissta CR-000-001"))
     response = ai_agent.respond(None, incoming("Sim", context=suggestion.context))
     assert response.message == list_faq("compra")[0].answer
 

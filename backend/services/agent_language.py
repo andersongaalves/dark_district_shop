@@ -1,6 +1,9 @@
 """Small, bounded language helpers; never rewrite identifiers, prices or sizes."""
 import re
 import unicodedata
+from typing import get_args
+
+from schemas.produto import Garment
 
 
 COLORS = {
@@ -10,8 +13,7 @@ COLORS = {
     "amarelo": "amarelo", "amarela": "amarelo", "laranja": "laranja",
     "bege": "bege", "marrom": "marrom",
 }
-PIECES = ("camiseta", "cropped", "jaqueta", "saia", "vestido", "calca", "moletom",
-          "short", "bermuda", "blusa", "regata", "top", "corset", "camisa")
+PIECES = get_args(Garment)
 ALIASES = {"vc": "voce", "vcs": "voces", "q": "que", "oq": "o que", "tb": "tambem",
            "tbm": "tambem", "pfv": "por favor", "pf": "por favor", "obg": "obrigado",
            "vlw": "valeu", "blz": "beleza", "vdd": "verdade"}

@@ -28,6 +28,13 @@ mais complexas; preços, estoque, descrições e políticas vêm do cadastro da 
 
 ## Interação no site
 
+Perguntas diretas como `Tem calça?` e `Tem saia?` consultam o tipo solicitado no
+título ou categoria, com estoque e filtros atuais, e respondem antes de listar
+produtos: `Sim, encontrei calças disponíveis...` ou `Não encontrei calças disponíveis...`.
+Menções na descrição não classificam o tipo de roupa. Trocar de tipo não reutiliza
+o produto anterior. Quando não há resultado, outras peças só aparecem depois de
+o cliente escolher `Ver outras peças`.
+
 O chat oferece atalhos iniciais e sugestões nas respostas: confirmar a escrita,
 consultar compra, buscar outras cores ou começar de novo. `ChatAction` aceita
 `human_handoff` e `suggestion`; a segunda envia apenas uma mensagem curta de texto

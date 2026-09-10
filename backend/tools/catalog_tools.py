@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from core.config import settings
 from schemas.atendimento import ChatProduct
-from schemas.produto import ProdutoResponse
+from schemas.produto import Garment, ProdutoResponse
 from schemas.faq import FAQItem
 from services.produtos import listar_produtos, obter_produto
 
@@ -24,6 +24,7 @@ class ToolArguments(BaseModel):
 
 class SearchArguments(ToolArguments):
     query: ShortText | None = None
+    garment: Garment | None = None
     category: ShortText | None = None
     size: Annotated[str, Field(min_length=1, max_length=50)] | None = None
     color: ShortText | None = None
@@ -79,6 +80,7 @@ def search(db: Session, arguments: SearchArguments) -> ToolResult:
     products = listar_produtos(
         db,
         query=arguments.query,
+        garment=arguments.garment,
         category_name=arguments.category,
         size=arguments.size,
         color=arguments.color,

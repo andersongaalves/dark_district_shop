@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ProductType = Literal["catalogo", "brecho", "drop"]
+Garment = Literal["camiseta", "cropped", "jaqueta", "saia", "vestido", "calca", "moletom",
+                  "short", "bermuda", "blusa", "regata", "top", "corset", "camisa"]
 
 
 class ProdutoImagemBase(BaseModel):

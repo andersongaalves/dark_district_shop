@@ -27,6 +27,20 @@ def listar_produtos(db: Session, **filters) -> list[Produto]:
     ))
     if filters.get("offer_active") is not None:
         query = query.filter(active if filters["offer_active"] else ~active)
+    if filters.get("garment"):
+        # Garment identity comes from title/category, never styling suggestions
+        # in the description. Apply before LIMIT so unrelated pieces cannot
+        # hide a real match. Boundaries also distinguish calça from calçado.
+        garment = filters["garment"]
+        matches = []
+        for column in (Produto.title, Produto.category):
+            normalized = func.lower(func.replace(func.replace(column, "Ç", "c"), "ç", "c"))
+            for separator in ("-", "/", ",", ".", "(", ")", ":", "\n", "\t"):
+                normalized = func.replace(normalized, separator, " ")
+            normalized = " " + normalized + " "
+            matches.extend(normalized.contains(f" {word} ", autoescape=True)
+                           for word in (garment, garment + "s"))
+        query = query.filter(or_(*matches))
     if filters.get("query"):
         # Literal substring searches: user input cannot add SQL wildcards or SQL.
         for word in filters["query"].strip().split()[:12]:
