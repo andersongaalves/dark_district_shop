@@ -6,6 +6,9 @@ backend a partir dos produtos reais e do FAQ publicado. O frontend continua HTML
 
 ## Decisões e reaproveitamento
 
+As melhorias posteriores de diálogo, correção de digitação e respostas sugeridas
+estão descritas em [conversa e sugestões de escrita](agente-interacao.md).
+
 - Mantidos `database.py`, autenticação administrativa, modelos de produtos,
   categorias/coleções, serviços existentes, URLs públicas e carrinho.
 - `services/produtos.py` ganhou filtros internos por texto, categoria, preço

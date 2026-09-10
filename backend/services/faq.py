@@ -29,6 +29,10 @@ def match_faq(message: str) -> list[FAQItem]:
     This only selects published answers. It does not authorize a refund, infer
     delivery prices/times, or confirm a city/address outside the published region.
     """
+    parts = [part.strip() for part in re.split(r"[?;\n]+", message) if part.strip()]
+    if len(parts) > 1:
+        topics = {item.id for part in parts for item in match_faq(part)}
+        return [item for item in list_faq() if item.id in topics]
     text = "".join(char for char in unicodedata.normalize("NFKD", message.lower())
                    if not unicodedata.combining(char))
     returns = bool(re.search(r"\b(devolucoes|devolucao|devolver|devolvo)\b", text))
@@ -42,15 +46,15 @@ def match_faq(message: str) -> list[FAQItem]:
         r"\b(atend\w*|entreg\w*|envia\w*|cobertura|regiao|juazeiro)\b", text)) or re.search(
         r"\b(atend\w*|entreg\w*|envia\w*)\s+(em|para)\b", text):
         topics.add("atendimento")
-    if not returns and re.search(r"\b(entrega|entregue|entregador|entregas|entregam|frete|delivery)\b", text):
+    if not returns and re.search(r"\b(entrega|entregue|entregador|entregas|entregam|frete|delivery|enviam|manda)\b", text):
         if re.search(r"\b(prazo|quando|demora|horario|horarios|dias|amanha|hoje)\b|quanto tempo|que horas", text):
             return []
         if re.search(r"\b(endereco|casa)\b", text):
             topics.discard("atendimento")
-        if "atendimento" not in topics and (re.search(r"\b(como|endereco|casa|entregador|entregue|delivery)\b", text)
+        if "atendimento" not in topics and (re.search(r"\b(como|endereco|casa|entregador|entregue|delivery|fazem)\b", text)
                                              or re.fullmatch(r"\s*entregas?[\s?!.,]*", text)):
             topics.add("entrega")
-    if re.search(r"\b(compra|compras|comprar|compro|pedido|pedidos)\b", text) and re.search(
+    if re.search(r"\b(compra|compras|comprar|compro|pedido|pedidos|pedir|finalizar)\b", text) and re.search(
         r"\b(como|funciona|funcionam|processo|passos|finalizo|finalizar)\b", text):
         topics.add("compra")
     if re.fullmatch(r"\s*(faq|perguntas frequentes)[\s?!.,]*", text):

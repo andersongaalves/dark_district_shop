@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from models.atendimento import Channel, ConversationStatus, Sender
 from schemas.produto import ProdutoResponse
@@ -31,8 +31,15 @@ class ChatProduct(ProdutoResponse):
 
 
 class ChatAction(StrictModel):
-    type: Literal["human_handoff"] = "human_handoff"
-    label: str = "Falar com uma pessoa"
+    type: Literal["human_handoff", "suggestion"] = "human_handoff"
+    label: str = Field(default="Falar com uma pessoa", min_length=1, max_length=80)
+    message: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def validate_suggestion(self):
+        if self.type == "suggestion" and (not self.message or not self.message.strip() or "\x00" in self.message):
+            raise ValueError("A sugestão precisa conter uma mensagem válida.")
+        return self
 
 
 class AgentResponse(StrictModel):

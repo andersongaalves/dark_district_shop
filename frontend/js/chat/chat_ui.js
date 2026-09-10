@@ -75,8 +75,12 @@ export function createChatView(actions) {
         if (event.target === dialog || event.target.closest("[data-close]")) close();
         if (event.target.closest("[data-retry]")) run(actions.onRetry);
         if (event.target.closest("[data-discard]")) { actions.onDiscard(); input.focus(); }
-        if (event.target.closest("[data-handoff]") && !state?.busy && !state?.pending) {
+        if (event.target.closest("[data-handoff]") && state?.status === "AI" && !state?.busy && !state?.pending) {
             run(() => actions.onSend("Quero falar com a equipe"));
+        }
+        const suggestion = event.target.closest("[data-suggestion]");
+        if (suggestion && !suggestion.disabled && state?.status === "AI" && !state?.busy && !state?.pending) {
+            run(async () => { await actions.onSend(suggestion.dataset.suggestion); input.focus({ preventScroll: true }); });
         }
         if (event.target.closest("[data-end]")) run(async () => { await actions.onEnd(); input.focus(); });
     });
@@ -111,6 +115,8 @@ export function createChatView(actions) {
         close,
         render(next) {
             state = next;
+            const last = state.messages.at(-1);
+            const latestKey = last ? `${last.sender}:${last.id || state.messages.length - 1}` : "welcome";
             dialog.querySelector("#dd-chat-status").textContent = STATUS_TEXT[state.status] ?? STATUS_TEXT.AI;
             dialog.querySelector("[data-activity]").textContent = state.busy ? "Consultando atendimento…" : "";
             dialog.querySelector("[data-error]").hidden = !state.error;
@@ -121,8 +127,9 @@ export function createChatView(actions) {
             form.querySelector("button").disabled = state.busy || Boolean(state.pending);
             dialog.querySelector("[data-end]").disabled = state.busy || !state.hasSession;
             dialog.querySelectorAll("[data-retry], [data-discard]").forEach((button) => { button.disabled = state.busy; });
-            dialog.querySelectorAll("[data-handoff]").forEach((button) => {
-                button.disabled = state.busy || Boolean(state.pending) || state.status !== "AI";
+            dialog.querySelectorAll("[data-handoff], [data-suggestion]").forEach((button) => {
+                button.disabled = state.busy || Boolean(state.pending) || state.status !== "AI" ||
+                    (button.hasAttribute("data-suggestion") && button.dataset.messageKey !== latestKey);
             });
             const signature = JSON.stringify(state.messages);
             if (renderedMessages === signature) return;
@@ -144,12 +151,18 @@ export function createChatView(actions) {
                 text.textContent = message.message;
                 item.append(label, text);
                 for (const action of message.actions ?? []) {
-                    if (action.type !== "human_handoff") continue;
+                    if (!["human_handoff", "suggestion"].includes(action.type)) continue;
+                    if (action.type === "suggestion" && (typeof action.message !== "string" || !action.message.trim() || action.message.length > 200)) continue;
                     const button = document.createElement("button");
                     button.type = "button";
-                    button.dataset.handoff = "";
+                    if (action.type === "human_handoff") button.dataset.handoff = "";
+                    else {
+                        button.dataset.suggestion = action.message;
+                        button.dataset.messageKey = key;
+                    }
                     button.textContent = action.label;
-                    button.disabled = state.busy || Boolean(state.pending) || state.status !== "AI";
+                    button.disabled = state.busy || Boolean(state.pending) || state.status !== "AI" ||
+                        (action.type === "suggestion" && key !== latestKey);
                     item.append(button);
                 }
                 if (message.products?.length) {
@@ -177,8 +190,21 @@ export function createChatView(actions) {
             if (!nodes.length) {
                 const welcome = document.createElement("p");
                 welcome.className = "dd-chat__welcome";
-                welcome.textContent = "Oi! Sou a IA da DD. Posso ajudar a encontrar peças e consultar o catálogo. Se precisar da equipe, é só pedir.";
+                welcome.textContent = "Oi! Sou a IA da DD. Posso encontrar peças, consultar ofertas e tirar dúvidas sobre compra, entrega e devolução. O que você gostaria de saber?";
                 nodes.push(welcome);
+                const shortcuts = document.createElement("div");
+                shortcuts.className = "dd-chat__shortcuts";
+                for (const [label, message] of [["Ver peças", "Mostre as peças disponíveis"],
+                    ["Como comprar", "Como funciona a compra?"], ["Entrega", "Como é feita a entrega?"]]) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = label;
+                    button.dataset.suggestion = message;
+                    button.dataset.messageKey = "welcome";
+                    button.disabled = state.busy || Boolean(state.pending) || state.status !== "AI";
+                    shortcuts.append(button);
+                }
+                nodes.push(shortcuts);
             }
             // Retain existing bubbles so assistive technology announces only new content.
             nodes.forEach((node, index) => {

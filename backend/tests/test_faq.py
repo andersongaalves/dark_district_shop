@@ -69,7 +69,9 @@ def test_return_requests_and_human_requests_still_take_priority(message, monkeyp
 ])
 def test_unregistered_policy_details_are_referred_to_staff(message):
     response = ai_agent.respond(None, incoming(message))
-    assert response.handoff
+    assert not response.handoff
+    assert response.actions[0].type == "human_handoff"
+    assert "confirmada com a equipe" in response.message
     assert all(item.answer not in response.message for item in list_faq())
 
 

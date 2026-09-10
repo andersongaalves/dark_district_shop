@@ -96,6 +96,9 @@ que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.
 
 ## Atendimento multicanal
 
+O agente também reconhece abreviações, sugere correções com confirmação e mantém
+diálogos de ajuda e refinamento. Veja [conversa e sugestões de escrita](../docs/agente-interacao.md).
+
 O FAQ público está em `GET /faq`. A página e o agente usam as respostas de
 `content/faq.json` sobre compra, entrega, devolução e região atendida. A ferramenta
 `consultar_faq` consulta a mesma fonte. Esta etapa não requer migration; veja

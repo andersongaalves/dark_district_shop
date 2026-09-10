@@ -59,6 +59,10 @@ nos produtos antigos, mas não são oferecidas para novos vínculos.
 
 ## Atendimento no site
 
+O chat tem atalhos iniciais e botões de resposta para correções de escrita e
+continuação da busca. As sugestões antigas são desativadas ao avançar a conversa.
+Veja [as melhorias de interação](../docs/agente-interacao.md).
+
 O link FAQ no rodapé abre `pages/faq/index.html`. As perguntas expansíveis usam
 `GET /faq`, a mesma fonte de respostas do agente nos dois canais. Há retentativa
 em falhas de carregamento e contato pelo WhatsApp. Veja [o guia do FAQ](../docs/faq.md).

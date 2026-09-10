@@ -281,3 +281,55 @@ test("widget opens on demand, keeps composer focus, cycles Tab, restores focus a
     assert.equal(document.activeElement, launcher);
     assert.equal(launcher.getAttribute("aria-expanded"), "false");
 });
+
+test("suggested replies send plain text only on click and expire after the conversation advances", async (t) => {
+    await installDOM(t, "<body></body>");
+    const sent = [];
+    const view = createChatView({ onSend: (message) => sent.push(message) });
+    t.after(() => view.destroy());
+    const message = normalizeChatMessage(reply({ message_id: "correction", message: "Você quis dizer camiseta?", actions: [
+        { type: "suggestion", label: '<img src=x onerror="alert(1)">', message: "Sim" },
+        { type: "suggestion", label: "Não", message: "Não" },
+        { type: "arbitrary_http", url: "https://attacker.test/" }
+    ] }));
+    const state = { messages: [message], status: "AI", busy: false, error: "", pending: null, persisted: true, hasSession: true };
+    view.render(state);
+    assert.deepEqual(sent, []);
+    assert.equal(document.querySelector("#dd-chat img, #dd-chat [onerror]"), null);
+    assert.equal(document.querySelectorAll("[data-suggestion]").length, 2);
+    const confirm = document.querySelector('[data-suggestion="Sim"]');
+    confirm.click();
+    await eventually(() => assert.deepEqual(sent, ["Sim"]));
+    view.render({ ...state, busy: true });
+    assert.equal(confirm.disabled, true);
+    confirm.click();
+    assert.deepEqual(sent, ["Sim"]);
+    view.render({ ...state, messages: [message, { id: "new-user", sender: "customer", message: "Outra pergunta" }] });
+    assert.equal(confirm.disabled, true);
+    view.render({ ...state, status: "WAITING_HUMAN" });
+    assert.equal(confirm.disabled, true);
+});
+
+test("suggestion normalization drops invalid and customer-supplied actions", () => {
+    const invalid = [null, {}, { type: "suggestion", message: " " },
+        { type: "suggestion", message: "x".repeat(201) }, { type: "suggestion", message: "a\0b" },
+        { type: "execute", message: "Sim" }];
+    assert.deepEqual(normalizeChatMessage(reply({ actions: invalid })).actions, []);
+    assert.deepEqual(normalizeChatMessage({ sender: "customer", content: "oi", actions: [{ type: "suggestion", message: "Sim" }] }).actions, []);
+});
+
+test("welcome shortcuts work after session loading and are disabled during human service", async (t) => {
+    await installDOM(t, "<body></body>");
+    const sent = [];
+    const view = createChatView({ onSend: (message) => sent.push(message) });
+    t.after(() => view.destroy());
+    const state = { messages: [], status: "AI", busy: true, error: "", pending: null, persisted: true, hasSession: false };
+    view.render(state);
+    assert.equal(document.querySelectorAll("[data-suggestion]").length, 3);
+    assert.ok([...document.querySelectorAll("[data-suggestion]")].every((button) => button.disabled));
+    view.render({ ...state, busy: false, hasSession: true });
+    document.querySelector('[data-suggestion="Como funciona a compra?"]').click();
+    await eventually(() => assert.deepEqual(sent, ["Como funciona a compra?"]));
+    view.render({ ...state, busy: false, status: "HUMAN" });
+    assert.ok([...document.querySelectorAll("[data-suggestion]")].every((button) => button.disabled));
+});

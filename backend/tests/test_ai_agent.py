@@ -61,7 +61,7 @@ def test_unknown_stock_is_reported_without_quantity(client, db):
     assert response.products[0].variants == []
 
 
-@pytest.mark.parametrize("message", ["Quero atendente", "Você pode chamar um humano?", "Preciso de estorno", "Qual o frete?", "Tenho uma reclamação"])
+@pytest.mark.parametrize("message", ["Quero atendente", "Você pode chamar um humano?", "Preciso de estorno", "Tenho uma reclamação"])
 def test_handoff_rules_do_not_call_provider(db, monkeypatch, message):
     monkeypatch.setattr(ai_agent, "get_provider", lambda: pytest.fail("No LLM needed"))
     response = ai_agent.respond(db, incoming(message))
