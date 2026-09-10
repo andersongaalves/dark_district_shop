@@ -1,4 +1,4 @@
-import { isProductAvailable } from "../../core/products.js";
+import { isProductAvailable, getSelectedVariant } from "../../core/products.js";
 import { getSelectedOptions } from "./produto_options.js";
 
 export function updateProductAvailability(
@@ -33,4 +33,6 @@ export function updateProductAvailability(
         : "Indisponível";
 
     interestButton.disabled = !available;
+    const cartButton = section.querySelector(".produto__cart");
+    if (cartButton) cartButton.disabled = getSelectedVariant(product, selected) === undefined;
 }

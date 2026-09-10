@@ -1,4 +1,5 @@
 import { ROUTES } from "../utils/urls.js";
+import { initCart } from "../cart/cart.js";
 
 export function renderHeader() {
     const header = document.querySelector("#header");
@@ -31,21 +32,18 @@ export function renderHeader() {
                 <a href="${ROUTES.catalogo}">
                     Catálogo
                 </a>
-
+                <a href="${ROUTES.brecho}">Brechó</a>
+                <a href="${ROUTES.drops}">Drops</a>
                 <a href="${ROUTES.sobre}">
                     Sobre
                 </a>
             </nav>
 
-            <button
-                class="header-menu"
-                type="button"
-                aria-label="Abrir menu"
-                aria-expanded="false"
-            >
-                ☰
+            <button class="header-cart" type="button" aria-haspopup="dialog" aria-controls="cart-drawer">
+                Carrinho (<span data-cart-count aria-live="polite">0</span>)
             </button>
 
         </div>
     `;
+    initCart(header.querySelector(".header-cart"));
 }

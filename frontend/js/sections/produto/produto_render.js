@@ -1,6 +1,7 @@
 import { formatPrice } from "../../utils/format.js";
 import { escapeHtml } from "../../utils/dom.js";
-import { ROUTES, getImageUrl } from "../../utils/urls.js";
+import { ROUTES, getImageUrl, getProductListUrl } from "../../utils/urls.js";
+import { PRODUCT_TYPES, getVariantOptions } from "../../core/products.js";
 
 import {
     renderDescription
@@ -13,32 +14,16 @@ export function renderProduct(section, product) {
         .map((image) => ({ ...image, url: getImageUrl(image.url) }))
         .filter((image) => image.url);
 
-    const variants = product.variants ?? [];
-
-    const colors = [
-        ...new Set(
-            variants
-                .map((variant) => variant.color)
-                .filter(Boolean)
-        )
-    ];
-
-    const sizes = [
-        ...new Set(
-            variants
-                .map((variant) => variant.size)
-                .filter(Boolean)
-        )
-    ];
+    const { color: colors, size: sizes } = getVariantOptions(product);
 
     section.innerHTML = `
         <div class="container produto__container">
 
             <a
-                href="${ROUTES.catalogo}"
+                href="${getProductListUrl(product.product_type)}"
                 class="produto__back"
             >
-                ← Voltar ao catálogo
+                ← ${escapeHtml(PRODUCT_TYPES[product.product_type] ?? "Catálogo")}
             </a>
 
             <div class="produto__content">
@@ -141,7 +126,7 @@ export function renderProduct(section, product) {
                                                     data-option="color"
                                                     data-value="${escapeHtml(color)}"
                                                 >
-                                                    ${escapeHtml(color)}
+                                                    ${escapeHtml(color || "Sem cor")}
                                                 </button>
                                             `
                                         ).join("")}
@@ -172,7 +157,7 @@ export function renderProduct(section, product) {
                                                     data-option="size"
                                                     data-value="${escapeHtml(size)}"
                                                 >
-                                                    ${escapeHtml(size)}
+                                                    ${escapeHtml(size || "Único")}
                                                 </button>
                                             `
                                         ).join("")}
@@ -187,6 +172,9 @@ export function renderProduct(section, product) {
                     <div class="produto__availability is-unavailable">
                         Verificando disponibilidade...
                     </div>
+
+                    <button type="button" class="produto__cart" disabled>Adicionar ao carrinho</button>
+                    <p class="produto__cart-status" role="status" aria-live="polite"></p>
 
                     <button
                         type="button"
