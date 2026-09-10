@@ -1,7 +1,7 @@
 import { escapeHtml } from "../utils/dom.js";
 import { createProductCard } from "../components/product_card.js";
 
-export function renderCatalogoLayout(section) {
+export function renderCatalogoLayout(section, title = "Catálogo") {
     section.innerHTML = `
         <div class="container catalogo__container">
 
@@ -12,7 +12,7 @@ export function renderCatalogoLayout(section) {
                     </span>
 
                     <h1 class="catalogo__title">
-                        Catálogo
+                        ${escapeHtml(title)}
                     </h1>
 
                     <p class="catalogo__description">
@@ -49,10 +49,10 @@ export function renderCatalogoLayout(section) {
 }
 
 export function renderCategoryFilters(section, products, onSelect) {
-    const categories = [...new Set(products.map((product) => product.category).filter(Boolean))];
+    const categories = [...new Map(products.map((product) => [product.category_id, product.category])).entries()];
     const container = section.querySelector(".catalogo__categories");
     container.innerHTML = `<button type="button" class="catalogo__filter is-active">Todos</button>` +
-        categories.map((category) => `<button type="button" class="catalogo__filter" data-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("");
+        categories.map(([id, name]) => `<button type="button" class="catalogo__filter" data-category="${escapeHtml(id)}">${escapeHtml(name)}</button>`).join("");
     container.querySelectorAll("button").forEach((button) => {
         button.addEventListener("click", () => {
             container.querySelectorAll("button").forEach((item) => item.classList.toggle("is-active", item === button));
