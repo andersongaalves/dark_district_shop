@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -8,6 +8,16 @@ from database import Base
 
 class Produto(Base):
     __tablename__ = "produtos"
+    __table_args__ = (
+        CheckConstraint("product_type IN ('catalogo', 'brecho', 'drop')", name="ck_produtos_product_type"),
+    )
+
+    product_type: Mapped[str] = mapped_column(String(20), default="catalogo", server_default="catalogo", nullable=False)
+    category_id: Mapped[int] = mapped_column(ForeignKey("categorias.id", ondelete="RESTRICT"), index=True, nullable=False)
+    collection_id: Mapped[int | None] = mapped_column(ForeignKey("colecoes.id", ondelete="RESTRICT"), index=True, nullable=True)
+    is_offer: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    category_record: Mapped["Category"] = relationship("Category")
+    collection: Mapped["Collection | None"] = relationship("Collection")
 
     id: Mapped[str] = mapped_column(
         String(50),
@@ -29,6 +39,7 @@ class Produto(Base):
         nullable=False
     )
 
+    # Compatibility label for published clients; category_id is the identity.
     category: Mapped[str] = mapped_column(
         String(100),
         nullable=False

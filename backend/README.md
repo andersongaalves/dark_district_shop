@@ -29,8 +29,10 @@ ambiente do processo. Não há credenciais embutidas nem criação automática d
 - `routers/`: contratos HTTP, autenticação das mutações e tradução de erros de domínio.
 - `services/`: consultas, atualização das relações e commit/rollback.
 - `models/`: mapeamento e relacionamentos; imagens ordenadas por `ordem` e ID.
-- `schemas/`: validação/serialização. PUT preserva campos omitidos ou nulos;
-  arrays vazios removem imagens/variantes, e `false`/zero são valores válidos.
+- `schemas/`: validação/serialização. PUT preserva campos omitidos; `collection_id: null`
+  remove a coleção, e `category_id: null` é inválido. Nos demais campos, o comportamento
+  anterior de ignorar nulos foi preservado. Arrays vazios removem imagens/variantes;
+  `false`/zero são valores válidos. IDs de variantes existentes são preservados.
 - `database.py`: engine, sessões e dependência de banco.
 - `core/`: configuração e autenticação existentes.
 
@@ -41,9 +43,30 @@ configurado e escolhido pelo operador, aplique migrations com:
 python -m alembic upgrade head
 ```
 
-Nenhuma migration nova foi necessária nesta refatoração. O processo da aplicação
-não executa `Base.metadata.create_all`; esse recurso só é usado nos bancos
-isolados dos testes.
+A migration `a72c901e4b31`, após `fc910ce70e6d`, cria categorias/coleções e migra as
+categorias textuais, preservando produtos, imagens e variantes. Produtos antigos
+recebem `product_type=catalogo`, `is_offer=false` e nenhuma coleção. A aplicação
+não executa `Base.metadata.create_all`; esse recurso só é usado em testes isolados.
+
+Publique a migration e o backend de forma coordenada antes do novo frontend:
+o backend anterior não preenche a nova FK obrigatória. Detalhes de implantação,
+compatibilidade e reversão estão no [relatório desta etapa](../docs/catalogo-admin-carrinho.md).
+
+## Produtos, categorias e coleções
+
+`GET /produtos` aceita `product_type` (`catalogo`, `brecho`, `drop`), `category_id`,
+`collection_id`, `featured`, `is_offer` e `available`, combinados por AND.
+O CRUD existente de produtos e o endpoint de vendido permanecem disponíveis.
+
+`/categorias` e `/colecoes` oferecem GET/POST na raiz e PATCH/DELETE por ID.
+GET aceita `active=true` ou `active=false`; omitir retorna todos. Escritas exigem
+o mesmo Bearer token administrativo dos produtos. Exclusão de registros vinculados
+retorna 409; desativação preserva os produtos e impede novos vínculos.
+
+O novo ADM envia `category_id`. O campo `category` continua na resposta como nome
+sincronizado e é aceito em escritas legadas, convertendo o texto para uma entidade.
+Esse caminho está marcado como legado no OpenAPI e pode ser removido numa etapa
+futura após a migração de todos os clientes.
 
 ## Validar
 

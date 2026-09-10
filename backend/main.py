@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from core.config import settings
 from core.request_security import LoginRateLimiter, RequestSecurityMiddleware
 
 from routers.auth import router as auth_router
 from routers.produtos import router as produtos_router
+from routers.catalog import categories_router, collections_router
+from services.catalog import CatalogError
 
 
 app = FastAPI(
@@ -33,6 +36,13 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(produtos_router)
+app.include_router(categories_router)
+app.include_router(collections_router)
+
+
+@app.exception_handler(CatalogError)
+async def catalog_error_handler(_request, error: CatalogError):
+    return JSONResponse(status_code=error.status_code, content={"detail": str(error)})
 
 
 @app.get("/")

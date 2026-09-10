@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from core.security import get_current_user
 from database import get_db
 from models.produto import Produto
-from schemas.produto import ProdutoCreate, ProdutoResponse, ProdutoUpdate
+from schemas.produto import ProdutoCreate, ProdutoResponse, ProdutoUpdate, ProductType
 from services import produtos as service
 
 
@@ -13,8 +13,14 @@ protected = [Depends(get_current_user)]
 
 
 @router.get("", response_model=list[ProdutoResponse])
-def listar_produtos(db: Session = Depends(get_db)):
-    return service.listar_produtos(db)
+def listar_produtos(db: Session = Depends(get_db), product_type: ProductType | None = None,
+                    category_id: int | None = Query(default=None, gt=0, le=2_147_483_647),
+                    collection_id: int | None = Query(default=None, gt=0, le=2_147_483_647),
+                    featured: bool | None = None, is_offer: bool | None = None,
+                    available: bool | None = None):
+    return service.listar_produtos(db, product_type=product_type, category_id=category_id,
+                                  collection_id=collection_id, featured=featured,
+                                  is_offer=is_offer, available=available)
 
 
 @router.get("/{produto_id}", response_model=ProdutoResponse)
