@@ -17,7 +17,7 @@ def create_product(client, **changes):
 
 def test_tools_have_exact_allowlist_and_strict_arguments(db):
     assert set(REGISTRY) == {"buscar_produto", "listar_produtos", "consultar_estoque", "consultar_preco",
-                             "buscar_por_categoria", "buscar_por_tamanho", "buscar_por_cor"}
+                             "buscar_por_categoria", "buscar_por_tamanho", "buscar_por_cor", "consultar_faq"}
     for definition in definitions():
         schema = definition["function"]["parameters"]
         assert definition["function"]["strict"] is True

@@ -91,7 +91,3 @@ class ChatHistory(StrictModel):
 
 class ConversationUpdate(StrictModel):
     status: ConversationStatus
-
-
-class HumanMessageCreate(ChatMessageCreate):
-    pass

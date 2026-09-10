@@ -19,6 +19,7 @@ from core.config import settings
 from database import SessionLocal
 from integrations.whatsapp.client import WhatsAppDeliveryError, send_text
 from models.atendimento import Conversation, DeliveryJob
+from services.customer_service import SupportError
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +238,7 @@ def run_once(*, session_factory=SessionLocal, receiver=None, sender=None) -> boo
         status = "uncertain" if exc.uncertain else (
             "pending" if exc.retryable and job.attempts < settings.DELIVERY_MAX_ATTEMPTS else "failed")
         _finish(job, status, error_code=exc.code, session_factory=session_factory)
-    except HTTPException as exc:
+    except (HTTPException, SupportError) as exc:
         retryable = exc.status_code in (409, 429) or exc.status_code >= 500
         status = "pending" if retryable and job.attempts < settings.DELIVERY_MAX_ATTEMPTS else "failed"
         _finish(job, status, error_code="conversation_unavailable", session_factory=session_factory)

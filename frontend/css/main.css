@@ -11,6 +11,7 @@
 @import url("./sections/produto.css");
 @import url("./components/footer.css");
 @import url("./sections/sobre.css");
+@import url("./sections/faq.css");
 
 .container {
     width: min(100% - (var(--container-padding) * 2), var(--container-width));

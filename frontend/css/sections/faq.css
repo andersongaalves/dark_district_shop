@@ -1,0 +1,120 @@
+.faq {
+    width: min(860px, calc(100% - 48px));
+    margin-inline: auto;
+    padding-block: 80px;
+    min-height: 70vh;
+}
+
+.faq-heading {
+    margin-bottom: 44px;
+}
+
+.faq-label {
+    color: var(--color-primary);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+
+.faq-heading h1 {
+    font-family: var(--font-editorial);
+    font-size: clamp(38px, 7vw, 68px);
+    font-weight: 500;
+    line-height: 1.05;
+    margin-bottom: 20px;
+}
+
+.faq-heading > p:last-child,
+.faq-answer,
+.faq-contact p,
+.faq-list > p {
+    color: var(--color-text-muted);
+    font-size: 18px;
+    line-height: 1.65;
+}
+
+.faq-item {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    margin-bottom: 12px;
+}
+
+.faq-item[open] {
+    border-color: var(--color-primary);
+}
+
+.faq-item summary {
+    padding: 22px 24px;
+    cursor: pointer;
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.faq-item summary::marker {
+    color: var(--color-primary);
+}
+
+.faq-answer {
+    padding: 0 24px 24px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.faq-item summary:focus-visible,
+.faq a:focus-visible,
+.faq-retry:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 4px;
+    border-radius: var(--border-radius-sm);
+}
+
+.faq-contact {
+    border-top: 1px solid var(--color-border);
+    padding-top: 32px;
+    margin-top: 44px;
+}
+
+.faq-contact h2 {
+    font-family: var(--font-editorial);
+    font-size: 30px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.faq-contact a,
+.faq-retry {
+    display: inline-block;
+    margin-top: 18px;
+    padding: 12px 18px;
+    background: var(--color-surface-light);
+    color: var(--color-text);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius-sm);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.faq-contact a:hover,
+.faq-retry:hover {
+    background: var(--color-primary-dark);
+}
+
+@media (max-width: 480px) {
+    .faq {
+        width: calc(100% - 32px);
+        padding-block: 48px;
+    }
+
+    .faq-item summary {
+        padding: 18px;
+    }
+
+    .faq-answer {
+        padding: 0 18px 18px;
+    }
+}

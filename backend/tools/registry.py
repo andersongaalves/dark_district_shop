@@ -1,4 +1,4 @@
-"""The model only receives these seven read-only catalog functions."""
+"""The model only receives the approved read-only catalog and FAQ functions."""
 
 from dataclasses import dataclass
 import logging
@@ -10,6 +10,7 @@ from tools.catalog_tools import (
     CategoryArguments, ColorArguments, ProductArguments, SearchArguments,
     SizeArguments, StockArguments, ToolResult, lookup, search,
 )
+from tools.faq_tools import FAQArguments, consult_faq
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,10 @@ REGISTRY = {
     "buscar_por_categoria": Tool(CategoryArguments, search, "Busca peças disponíveis de uma categoria."),
     "buscar_por_tamanho": Tool(SizeArguments, search, "Busca peças com estoque no tamanho informado."),
     "buscar_por_cor": Tool(ColorArguments, search, "Busca peças com estoque na cor informada."),
+    "consultar_faq": Tool(FAQArguments, consult_faq,
+        "Consulta respostas oficiais sobre compra pelo WhatsApp, entrega no endereço, prazo de devolução e região atendida. "
+        "Selecione compra, entrega, devolucao ou atendimento; null retorna todos. Não informa taxa/prazo de entrega, "
+        "formas de pagamento, condições extras de devolução nem confirma cidades específicas não cadastradas."),
 }
 
 
@@ -64,9 +69,9 @@ def execute(db, name: str, arguments: dict) -> ToolResult:
         validated = tool.arguments.model_validate(arguments)
     except ValidationError:
         logger.warning("catalog_tool_rejected tool=%s reason=invalid_arguments", name)
-        return ToolResult(error="Parâmetros inválidos para consultar o catálogo.")
+        return ToolResult(error="Parâmetros inválidos para a consulta.")
     started = monotonic()
     result = tool.handler(db, validated)
     logger.info("catalog_tool tool=%s duration_ms=%d results=%d", name,
-                (monotonic() - started) * 1000, len(result.products))
+                (monotonic() - started) * 1000, len(result.products) + len(result.faqs))
     return result

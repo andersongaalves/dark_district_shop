@@ -45,6 +45,7 @@ export function createChatView(actions) {
     const input = dialog.querySelector("textarea");
     const form = dialog.querySelector("form");
     let state, renderedMessages = "", restoreFocus;
+    const messageNodes = new Map();
     const run = (operation) => Promise.resolve().then(operation).catch(() => {});
     const close = () => {
         if (!dialog.open) return;
@@ -74,6 +75,9 @@ export function createChatView(actions) {
         if (event.target === dialog || event.target.closest("[data-close]")) close();
         if (event.target.closest("[data-retry]")) run(actions.onRetry);
         if (event.target.closest("[data-discard]")) { actions.onDiscard(); input.focus(); }
+        if (event.target.closest("[data-handoff]") && !state?.busy && !state?.pending) {
+            run(() => actions.onSend("Quero falar com a equipe"));
+        }
         if (event.target.closest("[data-end]")) run(async () => { await actions.onEnd(); input.focus(); });
     });
     form.addEventListener("submit", (event) => {
@@ -117,11 +121,20 @@ export function createChatView(actions) {
             form.querySelector("button").disabled = state.busy || Boolean(state.pending);
             dialog.querySelector("[data-end]").disabled = state.busy || !state.hasSession;
             dialog.querySelectorAll("[data-retry], [data-discard]").forEach((button) => { button.disabled = state.busy; });
+            dialog.querySelectorAll("[data-handoff]").forEach((button) => {
+                button.disabled = state.busy || Boolean(state.pending) || state.status !== "AI";
+            });
             const signature = JSON.stringify(state.messages);
             if (renderedMessages === signature) return;
             renderedMessages = signature;
             const nearBottom = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 80;
-            const nodes = state.messages.map((message) => {
+            const currentKeys = new Set();
+            const nodes = state.messages.map((message, index) => {
+                const key = `${message.sender}:${message.id || index}`;
+                const signature = JSON.stringify(message);
+                currentKeys.add(key);
+                const existing = messageNodes.get(key);
+                if (existing?.signature === signature) return existing.element;
                 const item = document.createElement("article");
                 item.className = `dd-chat__message dd-chat__message--${message.sender}`;
                 const label = document.createElement("span");
@@ -130,6 +143,15 @@ export function createChatView(actions) {
                 const text = document.createElement("p");
                 text.textContent = message.message;
                 item.append(label, text);
+                for (const action of message.actions ?? []) {
+                    if (action.type !== "human_handoff") continue;
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.dataset.handoff = "";
+                    button.textContent = action.label;
+                    button.disabled = state.busy || Boolean(state.pending) || state.status !== "AI";
+                    item.append(button);
+                }
                 if (message.products?.length) {
                     const products = document.createElement("div");
                     products.className = "dd-chat__products";
@@ -148,15 +170,21 @@ export function createChatView(actions) {
                     }
                     item.append(products);
                 }
+                messageNodes.set(key, { signature, element: item });
                 return item;
             });
+            for (const key of messageNodes.keys()) if (!currentKeys.has(key)) messageNodes.delete(key);
             if (!nodes.length) {
                 const welcome = document.createElement("p");
                 welcome.className = "dd-chat__welcome";
                 welcome.textContent = "Oi! Sou a IA da DD. Posso ajudar a encontrar peças e consultar o catálogo. Se precisar da equipe, é só pedir.";
                 nodes.push(welcome);
             }
-            transcript.replaceChildren(...nodes);
+            // Retain existing bubbles so assistive technology announces only new content.
+            nodes.forEach((node, index) => {
+                if (transcript.children[index] !== node) transcript.insertBefore(node, transcript.children[index] ?? null);
+            });
+            while (transcript.children.length > nodes.length) transcript.lastElementChild.remove();
             if (nearBottom || state.messages.at(-1)?.sender === "customer") transcript.scrollTop = transcript.scrollHeight;
         },
         destroy() {

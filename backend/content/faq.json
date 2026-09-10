@@ -1,0 +1,22 @@
+[
+  {
+    "id": "compra",
+    "question": "Como funciona a compra?",
+    "answer": "Escolha as peças no site e selecione o tamanho e a cor, quando houver opções. Adicione os itens e clique em “Continuar pelo WhatsApp” para confirmar disponibilidade, entrega e pagamento com a loja. Adicionar itens não reserva estoque."
+  },
+  {
+    "id": "entrega",
+    "question": "Como é feita a entrega?",
+    "answer": "O entregador vai até o endereço definido para a entrega."
+  },
+  {
+    "id": "devolucao",
+    "question": "Qual é o prazo para devolução?",
+    "answer": "Você pode solicitar a devolução em até 7 dias após o recebimento."
+  },
+  {
+    "id": "atendimento",
+    "question": "Onde a Dark District atende?",
+    "answer": "Atendemos Juazeiro e região."
+  }
+]

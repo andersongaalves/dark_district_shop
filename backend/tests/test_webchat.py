@@ -103,3 +103,28 @@ def test_meta_verification_token_is_removed_from_access_log_arguments():
         ("127.0.0.1", "GET", "/webhooks/whatsapp?hub.verify_token=secret&hub.challenge=123", "1.1", 200), None)
     assert WebhookAccessFilter().filter(record)
     assert "secret" not in record.getMessage() and "hub.challenge" not in record.getMessage()
+
+
+def test_web_api_catalog_response_is_persisted_with_current_price_and_variant(client, db):
+    from datetime import timedelta
+    from models.atendimento import utc_now
+    from models.produto import Produto
+    from test_catalog_tools import create_product
+    create_product(client, price=100, is_offer=True, offer_price=60,
+        offer_ends_at=(utc_now() + timedelta(hours=1)).isoformat(),
+        variants=[{"size": "M", "color": "Preto", "quantity": 2}])
+    visitor = session(client)
+    first = client.post("/api/chat/messages", headers=headers(visitor),
+        json={"message_id": str(uuid4()), "message": "Tem camiseta preta M até R$80?"})
+    assert first.status_code == 200, first.text
+    result = first.json()
+    assert result["type"] == "product_results" and result["products"][0]["effective_price"] == 60
+    assert "M / Preto: 2 un." in result["message"]
+    product = db.get(Produto, "prod-001")
+    product.offer_ends_at = utc_now() - timedelta(seconds=1)
+    db.commit()
+    second = client.post("/api/chat/messages", headers=headers(visitor),
+        json={"message_id": str(uuid4()), "message": "Qual o preço dessa?"})
+    assert second.json()["products"][0]["effective_price"] == 100
+    history = client.get("/api/chat/messages", headers=headers(visitor)).json()
+    assert history["messages"][-1]["response"]["products"][0]["effective_price"] == 100

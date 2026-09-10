@@ -10,6 +10,7 @@ export const ROUTES = {
     brecho: new URL("pages/brecho/index.html", FRONTEND_URL).href,
     drops: new URL("pages/drops/index.html", FRONTEND_URL).href,
     sobre: new URL("pages/sobre/index.html", FRONTEND_URL).href,
+    faq: new URL("pages/faq/index.html", FRONTEND_URL).href,
     destaques: new URL("index.html#destaques", FRONTEND_URL).href,
     admin: new URL("admin/index.html", FRONTEND_URL).href,
     login: new URL("admin/login/index.html", FRONTEND_URL).href

@@ -43,7 +43,7 @@ export function renderFooter() {
                                 WhatsApp
                             </a>
                         </li>
-                        <li><a href="#">FAQ</a></li>
+                        <li><a href="${ROUTES.faq}">FAQ</a></li>
                     </ul>
                 </div>
 
@@ -75,4 +75,4 @@ export function renderFooter() {
     `;
 
     if (!footer.isConnected) document.body.appendChild(footer);
-} 
+}

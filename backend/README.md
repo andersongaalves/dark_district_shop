@@ -93,3 +93,26 @@ limites configuráveis de requisição/login, resultados dos testes e pendência
 chave de assinatura e infraestrutura. Credenciais não devem ser impressas em logs
 nem versionadas; a leitura explícita de campos `SecretStr` fica restrita aos pontos
 que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.
+
+## Atendimento multicanal
+
+O FAQ público está em `GET /faq`. A página e o agente usam as respostas de
+`content/faq.json` sobre compra, entrega, devolução e região atendida. A ferramenta
+`consultar_faq` consulta a mesma fonte. Esta etapa não requer migration; veja
+[edição, publicação e funcionamento do FAQ](../docs/faq.md).
+
+O Web Chat e o adapter oficial WhatsApp compartilham `conversation_service`, o
+agente, ferramentas de catálogo e o banco existente. A migration `c94e123a6d53`,
+após as ofertas, cria identidades, conversas, mensagens e jobs persistentes.
+
+Veja [.env.example](.env.example) e [o guia de atendimento](../docs/agente-multicanal.md)
+para execução, API, provider, Meta, worker, retenção e limitações. Para testar buscas
+locais, mantenha `LLM_PROVIDER=disabled`; WhatsApp começa desativado. Ativar o provider
+requer modelo e chave apenas no backend. Ativar WhatsApp requer credenciais Meta e
+um processo separado `python -m worker`. Nenhuma dessas integrações inicia sozinha.
+
+O comando recomendado da API com os logs de atendimento é:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --log-config logging.json
+```

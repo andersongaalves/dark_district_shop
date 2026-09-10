@@ -21,7 +21,7 @@ em `wrangler.jsonc`, servindo este diretório como assets.
 
 ## Responsabilidades
 
-- `js/api/`: acesso à API pública de produtos, sem token administrativo.
+- `js/api/`: acesso às APIs públicas de produtos, FAQ e chat, sem token administrativo.
 - `js/core/`: transporte HTTP e regras puras compartilhadas dos produtos.
 - `js/utils/`: URLs, escape de texto/atributos e preços.
 - `js/components/`: header, footer e card reutilizáveis.
@@ -56,6 +56,23 @@ quantidade, abrir/atualizar o drawer e continuar pelo WhatsApp. O carrinho não 
 estoque nem cria pedidos. Produtos sem variantes usam `available`, pois não possuem
 estoque numérico no contrato atual. Categorias/coleções desativadas podem continuar
 nos produtos antigos, mas não são oferecidas para novos vínculos.
+
+## Atendimento no site
+
+O link FAQ no rodapé abre `pages/faq/index.html`. As perguntas expansíveis usam
+`GET /faq`, a mesma fonte de respostas do agente nos dois canais. Há retentativa
+em falhas de carregamento e contato pelo WhatsApp. Veja [o guia do FAQ](../docs/faq.md).
+
+O botão “Fale com a DD” inicializa o chat modular nas páginas públicas. A API em
+`js/api/chat_api.js` usa a credencial de visitante em `sessionStorage`, separada do
+token administrativo e do carrinho. O histórico é lido do servidor ao abrir; envio
+com falha pode ser repetido com o mesmo UUID. Cards reutilizam preços, imagens e URLs
+da loja. O chat não executa checkout nem manipula o carrinho automaticamente.
+
+Para testar, aplique a migration de atendimento e execute a API local na porta
+8000. O modo `LLM_PROVIDER=disabled` permite consultas simples ao catálogo sem
+chaves externas. Veja [o guia completo](../docs/agente-multicanal.md) para ativação
+do provider, webhook, estados humanos e limites de validação.
 
 ## Testes
 

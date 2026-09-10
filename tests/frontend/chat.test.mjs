@@ -11,7 +11,7 @@ const token = "visitor_credential_only_1234567890";
 const session = () => ({ session_id: token, conversation_id: "conversation-1", expires_at: new Date(Date.now() + 3600000).toISOString() });
 const reply = (overrides = {}) => ({ conversation_id: "conversation-1", status: "AI", message_id: "reply-1", message: "Encontrei uma opção.", type: "message", products: [], actions: [], handoff: false, ...overrides });
 const product = { id: "CR-001", title: "Cropped DD", category: "Cropped", price: 90, available: true,
-    images: [{ url: "https://images.example.com/cropped.webp" }], variants: [{ size: "M", color: "Preto", stock: 1 }],
+    images: [{ url: "https://images.example.com/cropped.webp" }], variants: [{ size: "M", color: "Preto", quantity: 1 }],
     is_offer: true, offer_active: true, offer_price: 70, offer_ends_at: null, effective_price: 70 };
 
 function setupController(overrides = {}) {
@@ -218,6 +218,27 @@ test("chat view treats text as text, reuses safe product links and shows origina
     assert.match(document.querySelector(".dd-chat__product-link").href, /id=CR-001$/);
     assert.match(document.querySelector(".price-original").textContent, /90,00/);
     assert.match(document.querySelector(".price-offer").textContent, /70,00/);
+});
+
+test("new chat messages retain previous DOM nodes and only allowed handoff actions can send", async (t) => {
+    await installDOM(t, "<body></body>");
+    const sent = [];
+    const view = createChatView({ onSend: (message) => sent.push(message) });
+    t.after(() => view.destroy());
+    const first = normalizeChatMessage(reply({ actions: [
+        { type: "human_handoff", label: "Falar com a equipe" },
+        { type: "arbitrary_http", url: "https://attacker.test/" }
+    ] }));
+    const state = { messages: [first], status: "AI", busy: false, error: "", pending: null, persisted: true, hasSession: true };
+    view.render(state);
+    const existing = document.querySelector(".dd-chat__message");
+    view.render({ ...state, messages: [first, normalizeChatMessage(reply({ message_id: "reply-2", message: "Nova resposta" }))] });
+    assert.equal(document.querySelector(".dd-chat__message"), existing);
+    assert.equal(document.querySelectorAll("[data-handoff]").length, 1);
+    document.querySelector("[data-handoff]").click();
+    await eventually(() => assert.deepEqual(sent, ["Quero falar com a equipe"]));
+    view.render({ ...state, status: "WAITING_HUMAN" });
+    assert.equal(document.querySelector("[data-handoff]").disabled, true);
 });
 
 test("widget opens on demand, keeps composer focus, cycles Tab, restores focus and coexists with cart", async (t) => {

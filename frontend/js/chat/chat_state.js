@@ -15,6 +15,9 @@ export function normalizeChatMessage(value) {
     return {
         id: String(value.external_id ?? value.id ?? value.message_id ?? ""), sender,
         message: typeof message === "string" ? message.slice(0, 12000) : "",
+        actions: Array.isArray(response.actions) ? response.actions.filter((action) =>
+            action?.type === "human_handoff").slice(0, 1).map((action) => ({ type: "human_handoff",
+                label: typeof action.label === "string" ? action.label.slice(0, 80) : "Falar com a equipe" })) : [],
         products: Array.isArray(response.products) ? response.products.slice(0, 12).filter((product) =>
             product && typeof product.id === "string" && typeof product.title === "string" && Number.isFinite(product.price)) : []
     };

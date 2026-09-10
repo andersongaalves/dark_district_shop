@@ -7,6 +7,7 @@ from core.request_security import LoginRateLimiter, RequestSecurityMiddleware
 from routers.auth import router as auth_router
 from routers.produtos import router as produtos_router
 from routers.catalog import categories_router, collections_router
+from routers.faq import router as faq_router
 from services.catalog import CatalogError
 from services.customer_service import SupportError
 from routers.webchat import router as webchat_router
@@ -48,6 +49,7 @@ app.include_router(auth_router)
 app.include_router(produtos_router)
 app.include_router(categories_router)
 app.include_router(collections_router)
+app.include_router(faq_router)
 app.include_router(webchat_router)
 app.include_router(whatsapp_router)
 app.include_router(atendimento_router)

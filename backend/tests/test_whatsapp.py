@@ -364,3 +364,40 @@ def test_delivery_order_query_compiles_to_postgres_row_locks():
     sql = str(delivery.ready_jobs_query(datetime.now(timezone.utc)).compile(dialect=postgresql.dialect()))
     assert "FOR UPDATE SKIP LOCKED" in sql
     assert "NOT (EXISTS" in sql and "routing_key" in sql
+
+
+def test_signed_webhook_through_real_agent_and_catalog_to_mocked_meta(client, db, sessions):
+    from models.atendimento import Message
+    from test_catalog_tools import create_product
+    create_product(client, variants=[{"size": "M", "color": "Preto", "quantity": 2}])
+    event = payload(text="Tem camiseta preta M?")
+    assert post_event(client, event).status_code == 200
+    sent = []
+    send = lambda recipient, body: sent.append((recipient, body)) or "wamid.sent"
+    assert delivery.run_once(session_factory=sessions, sender=send)
+    assert sent == []
+    assert delivery.run_once(session_factory=sessions, sender=send)
+    assert len(sent) == 1 and "M / Preto: 2 un." in sent[0][1]
+    assert "pages/produto/index.html?id=prod-001" in sent[0][1]
+    assert post_event(client, event).status_code == 200
+    assert not delivery.run_once(session_factory=sessions, sender=send)
+    db.expire_all()
+    assert db.query(Message).filter_by(sender="customer").count() == 1
+    assert post_event(client, payload(message_id="wamid.human", text="Quero atendente")).status_code == 200
+    assert delivery.run_once(session_factory=sessions, sender=send)
+    assert delivery.run_once(session_factory=sessions, sender=send)
+    assert len(sent) == 2
+    assert post_event(client, payload(message_id="wamid.waiting", text="E camiseta G?")).status_code == 200
+    assert delivery.run_once(session_factory=sessions, sender=send)
+    assert not delivery.run_once(session_factory=sessions, sender=send)
+    assert len(sent) == 2
+
+
+def test_whatsapp_uses_the_same_published_faq(client, sessions):
+    item = next(item for item in client.get("/faq").json() if item["id"] == "entrega")
+    assert post_event(client, payload(text=item["question"])).status_code == 200
+    sent = []
+    send = lambda recipient, body: sent.append(body) or "wamid.faq"
+    assert delivery.run_once(session_factory=sessions, sender=send)
+    assert delivery.run_once(session_factory=sessions, sender=send)
+    assert sent == [item["answer"]]

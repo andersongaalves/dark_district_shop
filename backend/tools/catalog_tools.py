@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from schemas.atendimento import ChatProduct
 from schemas.produto import ProdutoResponse
+from schemas.faq import FAQItem
 from services.produtos import listar_produtos, obter_produto
 
 
@@ -59,6 +60,7 @@ class ToolResult:
     products: list[ChatProduct] = field(default_factory=list)
     filters: dict = field(default_factory=dict)
     error: str | None = None
+    faqs: list[FAQItem] = field(default_factory=list)
 
 
 def serialize_product(product) -> ChatProduct:

@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 import warnings
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -59,6 +60,16 @@ class Settings(BaseSettings):
     def require_secret_value(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().strip():
             raise ValueError("A configuração obrigatória não pode estar vazia.")
+        return value
+
+    @field_validator("LLM_BASE_URL", "STOREFRONT_URL")
+    @classmethod
+    def public_http_url(cls, value):
+        parsed = urlsplit(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("Use uma URL HTTP(S) sem credenciais, query ou fragmento.")
+        if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ValueError("Use HTTPS para serviços externos.")
         return value
 
     @model_validator(mode="after")
