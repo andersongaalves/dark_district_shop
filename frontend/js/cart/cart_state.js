@@ -1,4 +1,4 @@
-import { getSelectedVariant } from "../core/products.js";
+import { getProductPrice, getSelectedVariant } from "../core/products.js";
 
 export const MAX_CART_ITEMS = 100;
 export const MAX_CART_QUANTITY = 999;
@@ -39,11 +39,13 @@ export function sanitizeCartItems(value) {
 }
 
 function snapshot(product, variant, quantity) {
-    if (!validProductId(product.id) || !validPrice(product.price)) throw new Error("Dados de produto inválidos na API.");
+    // The fresh API quote is authoritative even if the browser clock is wrong.
+    const price = product.effective_price ?? getProductPrice(product);
+    if (!validProductId(product.id) || !validPrice(price)) throw new Error("Dados de produto inválidos na API.");
     if (variant && (!Number.isSafeInteger(variant.id) || variant.id <= 0 ||
         !Number.isSafeInteger(variant.quantity) || variant.quantity < 0)) throw new Error("Dados de variante inválidos na API.");
     return { productId: product.id, variantId: variant?.id ?? null, title: product.title,
-        size: variant?.size || "", color: variant?.color || "", price: product.price,
+        size: variant?.size || "", color: variant?.color || "", price,
         quantity, image: product.images?.[0]?.url || "", stock: variant?.quantity ?? null, validated: true, issue: "" };
 }
 

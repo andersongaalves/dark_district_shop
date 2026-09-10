@@ -1,5 +1,17 @@
 export const PRODUCT_TYPES = Object.freeze({ catalogo: "Catálogo", brecho: "Brechó", drop: "Drops" });
 
+export function isOfferActive(product, now = Date.now()) {
+    if (!product.is_offer || product.offer_active === false) return false;
+    if (!product.offer_ends_at) return true;
+    const end = Date.parse(product.offer_ends_at);
+    return Number.isFinite(end) && end > now;
+}
+
+export function getProductPrice(product, now = Date.now()) {
+    return isOfferActive(product, now) && Number.isFinite(product.offer_price) &&
+        product.offer_price >= 0 && product.offer_price < product.price ? product.offer_price : product.price;
+}
+
 // Availability is independent of category and featured status.
 export function isProductAvailable(product, selection = {}) {
     if (!product.available) return false;

@@ -2,6 +2,7 @@ import { escapeHtml } from "../../js/utils/dom.js";
 import { renderImages } from "./produtos_imagens.js";
 import { renderVariants } from "./produtos_variantes.js";
 import { PRODUCT_TYPES } from "../../js/core/products.js";
+import { toDateTimeInput } from "../../js/utils/format.js";
 
 function recordOptions(records, selectedId) {
     return records.filter((record) => record.active || record.id === selectedId)
@@ -74,7 +75,7 @@ export function renderProductForm(produto, { categories = [], collections = [], 
 
                 <div class="admin-modal__field">
                     <label for="produto-price">
-                        Preço
+                        Preço original
                     </label>
 
                     <input
@@ -145,6 +146,21 @@ export function renderProductForm(produto, { categories = [], collections = [], 
                 </label>
 
                 <label><input type="checkbox" name="is_offer" ${produto?.is_offer ? "checked" : ""}> Produto em oferta</label>
+
+                <div id="produto-offer-fields" class="admin-modal__offer" ${produto?.is_offer ? "" : "hidden"}>
+                    <div class="admin-modal__field">
+                        <label for="produto-offer-price">Preço de oferta</label>
+                        <input id="produto-offer-price" name="offer_price" type="number" min="0" step="0.01"
+                            value="${escapeHtml(produto?.offer_price ?? "")}" ${produto?.is_offer ? "required" : "disabled"}>
+                        <small>Informe um valor menor que o preço original.</small>
+                    </div>
+                    <div class="admin-modal__field">
+                        <label for="produto-offer-end">Término da oferta (opcional)</label>
+                        <input id="produto-offer-end" name="offer_ends_at" type="datetime-local" step="1"
+                            value="${escapeHtml(toDateTimeInput(produto?.offer_ends_at))}" ${produto?.is_offer ? "" : "disabled"}>
+                        <small>Horário local deste navegador. Deixe vazio para uma oferta sem prazo.</small>
+                    </div>
+                </div>
 
                 <div class="admin-modal__field">
 

@@ -1,5 +1,6 @@
-import { formatPrice } from "../../js/utils/format.js";
 import { escapeHtml } from "../../js/utils/dom.js";
+import { getImageUrl } from "../../js/utils/urls.js";
+import { renderProductPrice } from "../../js/components/product_price.js";
 
 export function renderProdutosError(message, onRetry) {
     const container = document.querySelector("#admin-produtos");
@@ -54,13 +55,13 @@ export function renderProdutos(
 }
 
 function renderProduto(produto) {
-
+    const image = getImageUrl(produto.images?.[0]?.url);
     return `
         <article
-            class="admin-produto"
+            class="admin-produto admin-produto--product"
             data-id="${escapeHtml(produto.id)}"
         >
-            <div>
+            <div class="admin-produto__title">
                 <strong>
                     ${escapeHtml(produto.title)}
                 </strong>
@@ -70,9 +71,13 @@ function renderProduto(produto) {
                 </span>
             </div>
 
-            <span>
-                ${formatPrice(produto.price)}
-            </span>
+            <div class="admin-produto__preview">
+                ${image ? `<img src="${escapeHtml(image)}" alt="Prévia de ${escapeHtml(produto.title)}" loading="lazy" width="64" height="80">` : '<span>Sem imagem</span>'}
+            </div>
+
+            <div class="admin-produto__price">
+                ${renderProductPrice(produto, { showDeadline: true })}
+            </div>
 
             <span>
                 ${produto.available

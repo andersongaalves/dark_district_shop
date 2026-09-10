@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, String, Text, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -10,12 +10,15 @@ class Produto(Base):
     __tablename__ = "produtos"
     __table_args__ = (
         CheckConstraint("product_type IN ('catalogo', 'brecho', 'drop')", name="ck_produtos_product_type"),
+        CheckConstraint("offer_price IS NULL OR (offer_price >= 0 AND offer_price < price)", name="ck_produtos_offer_price"),
     )
 
     product_type: Mapped[str] = mapped_column(String(20), default="catalogo", server_default="catalogo", nullable=False)
     category_id: Mapped[int] = mapped_column(ForeignKey("categorias.id", ondelete="RESTRICT"), index=True, nullable=False)
     collection_id: Mapped[int | None] = mapped_column(ForeignKey("colecoes.id", ondelete="RESTRICT"), index=True, nullable=True)
     is_offer: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    offer_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    offer_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     category_record: Mapped["Category"] = relationship("Category")
     collection: Mapped["Collection | None"] = relationship("Collection")
 
@@ -87,6 +90,18 @@ class Produto(Base):
         back_populates="produto",
         cascade="all, delete-orphan"
     )
+
+    @property
+    def offer_active(self) -> bool:
+        end = self.offer_ends_at
+        # SQLite used in tests returns naive datetimes; stored values are UTC.
+        if end is not None and end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+        return bool(self.is_offer and (end is None or end > datetime.now(timezone.utc)))
+
+    @property
+    def effective_price(self) -> float:
+        return self.offer_price if self.offer_active and self.offer_price is not None else self.price
 
 
 class ProdutoImagem(Base):

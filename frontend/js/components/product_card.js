@@ -1,5 +1,5 @@
 import { isProductAvailable } from "../core/products.js";
-import { formatPrice } from "../utils/format.js";
+import { renderProductPrice } from "./product_price.js";
 import { escapeHtml } from "../utils/dom.js";
 import { getProductUrl, getImageUrl } from "../utils/urls.js";
 
@@ -53,7 +53,7 @@ export function createProductCard(product) {
             <div class="product-card__bottom">
 
                 <span class="product-card__price">
-                    ${formatPrice(product.price)}
+                    ${renderProductPrice(product)}
                 </span>
 
                 <span class="product-card__availability">

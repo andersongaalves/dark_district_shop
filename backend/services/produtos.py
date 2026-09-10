@@ -1,6 +1,7 @@
 from secrets import token_hex
+from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -21,6 +22,11 @@ def listar_produtos(db: Session, **filters) -> list[Produto]:
     for field in ("product_type", "category_id", "collection_id", "featured", "is_offer", "available"):
         if filters.get(field) is not None:
             query = query.filter(getattr(Produto, field) == filters[field])
+    if filters.get("offer_active") is not None:
+        active = and_(Produto.is_offer.is_(True), or_(
+            Produto.offer_ends_at.is_(None), Produto.offer_ends_at > datetime.now(timezone.utc)
+        ))
+        query = query.filter(active if filters["offer_active"] else ~active)
     return query.order_by(Produto.created_at.desc(), Produto.id).all()
 
 
@@ -79,6 +85,8 @@ def _aplicar_variantes(produto: Produto, variants):
 
 
 def _aplicar_dados(db: Session, produto: Produto, dados: ProdutoCreate | ProdutoUpdate) -> None:
+    previous_offer = produto.is_offer
+    previous_end = produto.offer_ends_at
     _aplicar_categoria(db, produto, dados)
     if "collection_id" in dados.model_fields_set:
         collection = None if dados.collection_id is None else resolve_reference(
@@ -87,10 +95,22 @@ def _aplicar_dados(db: Session, produto: Produto, dados: ProdutoCreate | Produto
         produto.collection = collection
         produto.collection_id = collection.id if collection else None
     # Preserve partial PUT semantics: omitted/null fields leave existing values intact.
-    # collection_id is the explicit exception: null clears the optional reference.
-    campos = dados.model_dump(exclude={"images", "variants", "category", "category_id", "collection_id"}, exclude_none=True)
+    # Nullable offer fields can also be cleared explicitly.
+    campos = dados.model_dump(exclude={"images", "variants", "category", "category_id", "collection_id", "offer_price", "offer_ends_at"}, exclude_none=True)
     for campo, valor in campos.items():
         setattr(produto, campo, valor)
+    for field in ("offer_price", "offer_ends_at"):
+        if field in dados.model_fields_set:
+            setattr(produto, field, getattr(dados, field))
+    if produto.offer_price is not None and produto.offer_price >= produto.price:
+        raise CatalogError("O preço de oferta deve ser menor que o preço original.")
+    end = produto.offer_ends_at
+    if end is not None:
+        end = end.replace(tzinfo=timezone.utc) if end.tzinfo is None else end.astimezone(timezone.utc)
+        if previous_end is not None:
+            previous_end = previous_end.replace(tzinfo=timezone.utc) if previous_end.tzinfo is None else previous_end.astimezone(timezone.utc)
+        if produto.is_offer and (not previous_offer or end != previous_end) and end <= datetime.now(timezone.utc):
+            raise CatalogError("O término da oferta deve estar no futuro.")
     if dados.images is not None:
         produto.images = [ProdutoImagem(**imagem.model_dump()) for imagem in dados.images]
     if dados.variants is not None:

@@ -40,8 +40,15 @@ para traduzir. Controllers coordenam renderização e serviços, sem dependênci
 inversas das camadas compartilhadas para páginas ou Admin.
 
 Catálogo, Brechó e Drops usam `catalogo.js` com `data-product-type` e a API única
-filtrada. A home consulta `featured=true&available=true` e `is_offer=true&available=true`,
+filtrada. A home consulta `featured=true&available=true` e `is_offer=true&offer_active=true&available=true`,
 exibindo até quatro produtos por seleção com o mesmo card.
+
+O ADM permite definir preço promocional e término opcional da oferta, usando o horário
+local do navegador e enviando UTC à API. A listagem mostra a primeira imagem entre
+título e preço. Cards e página de produto mostram o preço original riscado e o preço
+promocional; a oferta expira sem recarregar a página. O carrinho usa `effective_price`
+da API nas validações, incluindo a confirmação após uma oferta vencer. Detalhes em
+[ofertas com prazo](../docs/ofertas-com-prazo.md).
 
 O carrinho usa `darkDistrictCart:v1` no localStorage, com produto e variante como
 identidade. Preço e estoque são consultados novamente na API ao adicionar, alterar

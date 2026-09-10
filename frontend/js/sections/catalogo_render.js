@@ -1,5 +1,6 @@
 import { escapeHtml } from "../utils/dom.js";
 import { createProductCard } from "../components/product_card.js";
+import { watchOfferExpiry } from "../components/product_price.js";
 
 export function renderCatalogoLayout(section, title = "Catálogo") {
     section.innerHTML = `
@@ -66,6 +67,7 @@ export function renderCatalogoProducts(section, products) {
     grid.replaceChildren(...products.map(createProductCard));
     section.querySelector(".catalogo__count").textContent = `${products.length} ${products.length === 1 ? "produto" : "produtos"}`;
     section.querySelector(".catalogo__empty").classList.toggle("is-visible", products.length === 0);
+    watchOfferExpiry(section, products, () => renderCatalogoProducts(section, products));
 }
 
 export function renderCatalogoError(section) {

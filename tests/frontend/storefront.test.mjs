@@ -36,7 +36,7 @@ test("home selections request independent flags and never show unavailable produ
     });
     await renderFeatured();
     await renderOffers();
-    assert.deepEqual(queries, [{ featured: "true", available: "true" }, { is_offer: "true", available: "true" }]);
+    assert.deepEqual(queries, [{ featured: "true", available: "true" }, { is_offer: "true", offer_active: "true", available: "true" }]);
     assert.equal(document.querySelectorAll("#featured article").length, 1);
     assert.equal(document.querySelectorAll("#offers article").length, 1);
     assert.equal(document.querySelector("#ofertas").textContent, "Ofertas");

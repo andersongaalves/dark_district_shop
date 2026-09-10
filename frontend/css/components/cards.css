@@ -89,3 +89,6 @@
     letter-spacing: 0.15em;
     text-transform: uppercase;
 }
+.price-original { font-size: .75em; font-weight: 400; color: var(--color-text-muted); }
+.price-offer { color: var(--color-primary); }
+.price-deadline { display: block; font-size: .55em; font-weight: 400; color: var(--color-text-muted); }

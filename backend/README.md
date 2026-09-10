@@ -30,7 +30,8 @@ ambiente do processo. Não há credenciais embutidas nem criação automática d
 - `services/`: consultas, atualização das relações e commit/rollback.
 - `models/`: mapeamento e relacionamentos; imagens ordenadas por `ordem` e ID.
 - `schemas/`: validação/serialização. PUT preserva campos omitidos; `collection_id: null`
-  remove a coleção, e `category_id: null` é inválido. Nos demais campos, o comportamento
+  remove a coleção; `offer_price: null` e `offer_ends_at: null` limpam os campos de oferta,
+  e `category_id: null` é inválido. Nos demais campos, o comportamento
   anterior de ignorar nulos foi preservado. Arrays vazios removem imagens/variantes;
   `false`/zero são valores válidos. IDs de variantes existentes são preservados.
 - `database.py`: engine, sessões e dependência de banco.
@@ -52,10 +53,15 @@ Publique a migration e o backend de forma coordenada antes do novo frontend:
 o backend anterior não preenche a nova FK obrigatória. Detalhes de implantação,
 compatibilidade e reversão estão no [relatório desta etapa](../docs/catalogo-admin-carrinho.md).
 
+A migration seguinte, `b83d012f5c42`, adiciona preço promocional e vencimento opcional,
+sem alterar preços originais ou ofertas antigas. Consulte [ofertas com prazo](../docs/ofertas-com-prazo.md)
+para os novos campos, validações e publicação.
+
 ## Produtos, categorias e coleções
 
 `GET /produtos` aceita `product_type` (`catalogo`, `brecho`, `drop`), `category_id`,
-`collection_id`, `featured`, `is_offer` e `available`, combinados por AND.
+`collection_id`, `featured`, `is_offer`, `offer_active` e `available`, combinados por AND.
+`is_offer` filtra a configuração; `offer_active` considera também o vencimento.
 O CRUD existente de produtos e o endpoint de vendido permanecem disponíveis.
 
 `/categorias` e `/colecoes` oferecem GET/POST na raiz e PATCH/DELETE por ID.

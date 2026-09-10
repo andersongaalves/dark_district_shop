@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ProductType = Literal["catalogo", "brecho", "drop"]
 
@@ -37,7 +37,17 @@ class ProdutoVarianteResponse(ProdutoVarianteBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ProdutoCreate(BaseModel):
+class ProdutoOfferFields(BaseModel):
+    offer_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    offer_ends_at: AwareDatetime | None = None
+
+    @field_validator("offer_ends_at")
+    @classmethod
+    def normalize_offer_timezone(cls, value):
+        return value.astimezone(timezone.utc) if value is not None else None
+
+
+class ProdutoCreate(ProdutoOfferFields):
     id: str = Field(min_length=1, max_length=50, pattern=r"^[^/\\\x00-\x1f\x7f]+$")
     title: str = Field(max_length=200)
     description: str
@@ -61,7 +71,7 @@ class ProdutoCreate(BaseModel):
         return self
 
 
-class ProdutoUpdate(BaseModel):
+class ProdutoUpdate(ProdutoOfferFields):
     title: str | None = Field(default=None, max_length=200)
     description: str | None = None
     price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
@@ -88,6 +98,10 @@ class ProdutoResponse(BaseModel):
     collection_id: int | None
     product_type: ProductType
     is_offer: bool
+    offer_price: float | None
+    offer_ends_at: datetime | None
+    offer_active: bool
+    effective_price: float
     gender: str
     available: bool
     featured: bool
@@ -98,3 +112,10 @@ class ProdutoResponse(BaseModel):
     variants: list[ProdutoVarianteResponse]
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("offer_ends_at")
+    @classmethod
+    def serialize_offer_timezone(cls, value):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value

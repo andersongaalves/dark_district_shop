@@ -1,4 +1,4 @@
-import { formatPrice } from "../../utils/format.js";
+import { renderProductPrice, watchOfferExpiry } from "../../components/product_price.js";
 import { escapeHtml } from "../../utils/dom.js";
 import { ROUTES, getImageUrl, getProductListUrl } from "../../utils/urls.js";
 import { PRODUCT_TYPES, getVariantOptions } from "../../core/products.js";
@@ -93,7 +93,7 @@ export function renderProduct(section, product) {
                     </span>
 
                     <div class="produto__price">
-                        ${formatPrice(product.price)}
+                        ${renderProductPrice(product, { showDeadline: true })}
                     </div>
 
                     <details class="produto__description">
@@ -190,8 +190,9 @@ export function renderProduct(section, product) {
 
         </div>
     `;
-
-
+    watchOfferExpiry(section, [product], () => {
+        section.querySelector(".produto__price").innerHTML = renderProductPrice(product, { showDeadline: true });
+    });
 }
 
 export function renderNotFound(section) {

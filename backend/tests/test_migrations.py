@@ -75,3 +75,25 @@ def test_upgrade_and_downgrade_preserve_populated_database(tmp_path, monkeypatch
             assert connection.execute(text("SELECT category FROM produtos ORDER BY id")).scalars().all() == ["Camisetas", "Camisetas", "Calças", "", " camisetas "]
     finally:
         engine.dispose()
+
+
+def test_timed_offer_migration_preserves_prices_and_existing_offer_flags(tmp_path, monkeypatch):
+    url = f"sqlite:///{(tmp_path / 'offers.sqlite').as_posix()}"
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(url))
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    command.upgrade(config, "a72c901e4b31")
+    engine = create_engine(url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("INSERT INTO categorias VALUES (1, 'Camisetas', 'camisetas', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
+            connection.execute(text("""INSERT INTO produtos (id,title,description,price,category,gender,available,featured,created_at,updated_at,category_id,is_offer)
+                VALUES ('legacy','Peça','Descrição',99.9,'Camisetas','',TRUE,FALSE,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,1,TRUE)"""))
+        command.upgrade(config, "head")
+        with engine.connect() as connection:
+            row = connection.execute(text("SELECT price,is_offer,offer_price,offer_ends_at FROM produtos")).one()
+            assert tuple(row) == (99.9, 1, None, None)
+        command.downgrade(config, "a72c901e4b31")
+        with engine.connect() as connection:
+            assert tuple(connection.execute(text("SELECT price,is_offer FROM produtos")).one()) == (99.9, 1)
+    finally:
+        engine.dispose()

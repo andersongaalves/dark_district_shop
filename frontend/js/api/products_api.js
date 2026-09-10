@@ -2,7 +2,7 @@ import { request } from "../core/api.js";
 
 export function getProductsPath(filters = {}) {
     const query = new URLSearchParams();
-    for (const key of ["product_type", "category_id", "collection_id", "featured", "is_offer", "available"]) {
+    for (const key of ["product_type", "category_id", "collection_id", "featured", "is_offer", "offer_active", "available"]) {
         if (filters[key] !== undefined && filters[key] !== null) query.set(key, String(filters[key]));
     }
     return `/produtos${query.size ? `?${query}` : ""}`;

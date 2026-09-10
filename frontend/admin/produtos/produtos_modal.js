@@ -24,6 +24,24 @@ export function openProductModal({ produto = null, categories = [], collections 
     form.appendChild(errorMessage);
     let saving = false;
 
+    const offerToggle = modal.querySelector('[name="is_offer"]');
+    const offerFields = modal.querySelector("#produto-offer-fields");
+    const offerPrice = modal.querySelector('[name="offer_price"]');
+    const offerEnd = modal.querySelector('[name="offer_ends_at"]');
+    const originalPrice = modal.querySelector('[name="price"]');
+    const syncOfferFields = () => {
+        const enabled = Boolean(offerToggle.checked);
+        offerFields.hidden = !enabled;
+        offerPrice.disabled = offerEnd.disabled = !enabled;
+        offerPrice.required = enabled;
+        offerPrice.setCustomValidity?.(enabled && offerPrice.value && Number(offerPrice.value) >= Number(originalPrice.value)
+            ? "O preço de oferta deve ser menor que o preço original." : "");
+    };
+    offerToggle.addEventListener("change", syncOfferFields);
+    offerPrice.addEventListener("input", syncOfferFields);
+    originalPrice.addEventListener("input", syncOfferFields);
+    syncOfferFields();
+
     const close = () => {
         if (saving) return;
         modal.remove();
@@ -39,6 +57,12 @@ export function openProductModal({ produto = null, categories = [], collections 
         event.preventDefault();
         if (saving) return;
         const data = new FormData(form);
+        const isOffer = data.get("is_offer") === "on";
+        const endValue = isOffer ? data.get("offer_ends_at") : null;
+        if (endValue && !Number.isFinite(new Date(endValue).getTime())) {
+            errorMessage.textContent = "Informe uma data de término válida.";
+            return;
+        }
         const payload = {
             id: data.get("id"),
             title: data.get("title"),
@@ -50,7 +74,10 @@ export function openProductModal({ produto = null, categories = [], collections 
             gender: data.get("gender") || "",
             available: data.get("available") === "on",
             featured: data.get("featured") === "on",
-            is_offer: data.get("is_offer") === "on",
+            is_offer: isOffer,
+            offer_price: isOffer && data.get("offer_price") !== "" && data.get("offer_price") !== null
+                ? Number(data.get("offer_price")) : null,
+            offer_ends_at: endValue ? new Date(endValue).toISOString() : null,
             images: getImages(images),
             variants: getVariants(variants)
         };

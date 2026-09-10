@@ -17,10 +17,10 @@ def listar_produtos(db: Session = Depends(get_db), product_type: ProductType | N
                     category_id: int | None = Query(default=None, gt=0, le=2_147_483_647),
                     collection_id: int | None = Query(default=None, gt=0, le=2_147_483_647),
                     featured: bool | None = None, is_offer: bool | None = None,
-                    available: bool | None = None):
+                    available: bool | None = None, offer_active: bool | None = None):
     return service.listar_produtos(db, product_type=product_type, category_id=category_id,
                                   collection_id=collection_id, featured=featured,
-                                  is_offer=is_offer, available=available)
+                                  is_offer=is_offer, available=available, offer_active=offer_active)
 
 
 @router.get("/{produto_id}", response_model=ProdutoResponse)

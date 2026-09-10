@@ -1,6 +1,8 @@
 import { ROUTES } from "../utils/urls.js";
 import { createProductCard } from "../components/product_card.js";
 import { getProducts } from "../api/products_api.js";
+import { isOfferActive } from "../core/products.js";
+import { watchOfferExpiry } from "../components/product_price.js";
 
 async function renderSelection(selector, title, anchor, flag) {
     const section = document.querySelector(selector);
@@ -16,10 +18,16 @@ async function renderSelection(selector, title, anchor, flag) {
         </div>`;
     const grid = section.querySelector(".featured__grid");
     try {
-        const products = await getProducts({ [flag]: true, available: true });
-        const selected = products.filter((product) => product[flag] && product.available).slice(0, 4);
-        grid.replaceChildren(...selected.map(createProductCard));
-        if (!selected.length) grid.textContent = "Nenhum produto disponível nesta seleção no momento.";
+        const products = await getProducts({ [flag]: true, available: true,
+            ...(flag === "is_offer" ? { offer_active: true } : {}) });
+        const render = () => {
+            const selected = products.filter((product) => product[flag] && product.available &&
+                (flag !== "is_offer" || isOfferActive(product))).slice(0, 4);
+            grid.replaceChildren(...selected.map(createProductCard));
+            if (!selected.length) grid.textContent = "Nenhum produto disponível nesta seleção no momento.";
+            watchOfferExpiry(section, products, render);
+        };
+        render();
     } catch {
         grid.textContent = "Não foi possível carregar esta seleção de produtos.";
     }
