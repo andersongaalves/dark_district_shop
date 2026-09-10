@@ -39,8 +39,9 @@ export function renderHeader() {
                 </a>
             </nav>
 
-            <button class="header-cart" type="button" aria-haspopup="dialog" aria-controls="cart-drawer">
-                Carrinho (<span data-cart-count aria-live="polite">0</span>)
+            <button class="header-cart" type="button" aria-label="Abrir carrinho" aria-haspopup="dialog" aria-controls="cart-drawer">
+                <span class="cart-icon" aria-hidden="true"></span>
+                <span data-cart-count aria-live="polite">0</span>
             </button>
 
         </div>

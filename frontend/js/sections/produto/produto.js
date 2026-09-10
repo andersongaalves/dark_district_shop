@@ -49,7 +49,7 @@ export async function renderProduto() {
             message.textContent = "Verificando preço e estoque…";
             try {
                 await getCart().add(product.id, getSelectedOptions(section));
-                message.textContent = "Adicionado ao carrinho. Você pode abri-lo no topo da página.";
+                message.textContent = "Adicionado. Acesse seus itens pelo ícone no topo da página.";
             } catch (error) {
                 message.textContent = error.message;
             } finally {

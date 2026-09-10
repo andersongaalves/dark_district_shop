@@ -50,14 +50,14 @@ export function createCartController({ fetchProduct = getProduct,
                 if (!product || product.id !== productId) throw new Error("Produto não encontrado.");
                 items = addCartItem(items, itemForSelection(product, selection, quantity));
                 persist();
-                message = "Produto adicionado ao carrinho.";
+                message = "Produto adicionado.";
             });
         },
         setQuantity(key, quantity) {
             return run(async () => {
                 if (!validQuantity(quantity)) throw new Error("Informe uma quantidade inteira entre 1 e 999.");
                 const item = items.find((entry) => cartItemKey(entry) === key);
-                if (!item) throw new Error("Item não encontrado no carrinho.");
+                if (!item) throw new Error("Item não encontrado na seleção.");
                 const product = await currentProduct(item.productId);
                 const products = new Map([[item.productId, product]]);
                 const candidate = reconcileCart([{ ...item, quantity }], products).items[0];
@@ -68,23 +68,23 @@ export function createCartController({ fetchProduct = getProduct,
             });
         },
         remove(key) { return run(() => { items = removeCartItem(items, key); persist(); }); },
-        clear() { return run(() => { items = []; persisted = storage.clearCart(); message = "Carrinho limpo."; }); },
+        clear() { return run(() => { items = []; persisted = storage.clearCart(); message = "Todos os itens foram removidos."; }); },
         refresh() {
             return run(async () => {
                 const result = await validate();
-                message = result.changed ? "Preços ou opções foram atualizados. Revise seu carrinho." : "Disponibilidade atualizada.";
+                message = result.changed ? "Preços ou opções foram atualizados. Revise seus itens." : "Disponibilidade atualizada.";
             });
         },
         reload() {
             return run(async () => {
                 items = storage.loadCart().map((item) => ({ ...item, validated: false, issue: "" }));
                 await validate();
-                message = "Carrinho atualizado.";
+                message = "Itens atualizados.";
             });
         },
         prepareCheckout() {
             return run(async () => {
-                if (!items.length) throw new Error("Seu carrinho está vazio.");
+                if (!items.length) throw new Error("Nenhum item adicionado.");
                 const result = await validate();
                 if (items.some((item) => !item.validated || item.issue)) throw new Error("Revise os itens sinalizados antes de continuar.");
                 if (result.changed) throw new Error("Preços ou opções mudaram. Revise os valores e clique novamente para continuar.");

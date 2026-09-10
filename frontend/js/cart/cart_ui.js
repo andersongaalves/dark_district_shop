@@ -24,7 +24,7 @@ export function createCartView(actions) {
     dialog.id = "cart-drawer";
     dialog.className = "cart-drawer";
     dialog.setAttribute("aria-labelledby", "cart-title");
-    dialog.innerHTML = `<div class="cart-drawer__header"><h2 id="cart-title">Seu carrinho</h2>
+    dialog.innerHTML = `<div class="cart-drawer__header"><h2 id="cart-title" aria-label="Seu carrinho"><span class="cart-icon" aria-hidden="true"></span></h2>
         <button type="button" data-close aria-label="Fechar carrinho">×</button></div><div data-cart-content></div>`;
     document.body.appendChild(dialog);
     const content = dialog.querySelector("[data-cart-content]");
@@ -53,16 +53,16 @@ export function createCartView(actions) {
                 .find((attribute) => content.contains(focused) && focused.hasAttribute(attribute));
             if (focusControl) restoreFocus = { key: focused.closest("[data-key]")?.dataset.key, attribute: focusControl };
             content.innerHTML = `
-                <div class="cart-drawer__items">${state.items.length ? state.items.map((item) => renderItem(item, state.busy)).join("") : "<p>Seu carrinho está vazio.</p>"}</div>
+                <div class="cart-drawer__items">${state.items.length ? state.items.map((item) => renderItem(item, state.busy)).join("") : "<p>Nenhum item adicionado.</p>"}</div>
                 <div class="cart-drawer__summary">
                     <p class="cart-drawer__subtotal">Subtotal estimado <strong>${state.items.every((item) => item.validated) ? formatPrice(state.subtotal) : "A confirmar"}</strong></p>
-                    <p>O carrinho não reserva estoque. Entrega e pagamento serão combinados com a loja.</p>
+                    <p>Adicionar itens não reserva estoque. Entrega e pagamento serão combinados com a loja.</p>
                     <p role="status" aria-live="polite">${escapeHtml(state.busy ? "Consultando…" : state.message)}</p>
-                    ${state.persisted ? "" : '<p role="alert">Não foi possível salvar neste navegador. O carrinho ficará disponível apenas nesta página.</p>'}
+                    ${state.persisted ? "" : '<p role="alert">Não foi possível salvar neste navegador. Os itens ficarão disponíveis apenas nesta página.</p>'}
                     <button class="cart-drawer__checkout" type="button" data-checkout ${state.busy || !state.items.length ? "disabled" : ""}>Continuar pelo WhatsApp</button>
                     <div class="cart-drawer__actions">
                         <button type="button" data-refresh ${state.busy ? "disabled" : ""}>Atualizar disponibilidade</button>
-                        <button type="button" data-clear ${state.busy || !state.items.length ? "disabled" : ""}>Limpar carrinho</button>
+                        <button type="button" data-clear aria-label="Limpar carrinho" ${state.busy || !state.items.length ? "disabled" : ""}>Limpar <span class="cart-icon" aria-hidden="true"></span></button>
                     </div>
                 </div>`;
             if (restoreFocus && !state.busy) {

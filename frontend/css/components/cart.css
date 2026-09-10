@@ -1,4 +1,7 @@
 .header-cart {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     padding: 10px 14px;
     border: 1px solid var(--color-border);
     background: transparent;
@@ -7,6 +10,17 @@
     white-space: nowrap;
     cursor: pointer;
 }
+.cart-icon {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    vertical-align: middle;
+    background: currentColor;
+    -webkit-mask: url("../../assets/icons/cart.svg") center / contain no-repeat;
+    mask: url("../../assets/icons/cart.svg") center / contain no-repeat;
+}
+.produto__cart { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .cart-drawer {
     position: fixed;
     inset: 0 0 0 auto;

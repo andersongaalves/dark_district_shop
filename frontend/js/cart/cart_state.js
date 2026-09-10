@@ -62,7 +62,7 @@ export function addCartItem(items, item) {
     const quantity = item.quantity + (existing?.quantity ?? 0);
     if (!validQuantity(quantity)) throw new Error(`A quantidade máxima por item é ${MAX_CART_QUANTITY}.`);
     if (item.stock !== null && quantity > item.stock) throw new Error(`Estoque insuficiente. Disponível: ${item.stock}.`);
-    if (!existing && items.length >= MAX_CART_ITEMS) throw new Error("O carrinho atingiu o limite de itens.");
+    if (!existing && items.length >= MAX_CART_ITEMS) throw new Error("Você atingiu o limite de itens.");
     return existing ? items.map((entry) => cartItemKey(entry) === key ? { ...item, quantity } : entry) : [...items, item];
 }
 

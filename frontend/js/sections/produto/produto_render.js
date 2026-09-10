@@ -173,7 +173,7 @@ export function renderProduct(section, product) {
                         Verificando disponibilidade...
                     </div>
 
-                    <button type="button" class="produto__cart" disabled>Adicionar ao carrinho</button>
+                    <button type="button" class="produto__cart" aria-label="Adicionar ao carrinho" disabled>Adicionar <span class="cart-icon" aria-hidden="true"></span></button>
                     <p class="produto__cart-status" role="status" aria-live="polite"></p>
 
                     <button
