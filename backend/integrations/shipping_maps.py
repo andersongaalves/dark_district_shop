@@ -41,6 +41,12 @@ def lookup_cep(cep: str, *, client=None):
             "city": data["localidade"], "state": data["uf"]}
 
 
+def _street_number(value):
+    normalized = value.replace(" ", "").casefold()
+    # Providers remove leading zeroes: house 01 and house 1 are the same number.
+    return str(int(normalized)) if re.fullmatch(r"[0-9]+", normalized) else normalized
+
+
 def _geocode(client, address, *, expected=None):
     params = {"address": address, "key": settings.SHIPPING_GOOGLE_API_KEY.get_secret_value(),
               "language": "pt-BR", "components": "country:BR"}
@@ -64,7 +70,7 @@ def _geocode(client, address, *, expected=None):
             raise ValueError("country")
         if expected and (re.sub(r"\D", "", components.get("postal_code", "")) != expected.cep
             or components.get("administrative_area_level_1") != expected.state
-            or components.get("street_number", "").replace(" ", "").casefold() != expected.number.replace(" ", "").casefold()):
+            or _street_number(components.get("street_number", "")) != _street_number(expected.number)):
             raise ValueError("address mismatch")
         lat, lng = float(geometry["location"]["lat"]), float(geometry["location"]["lng"])
         if not math.isfinite(lat) or not math.isfinite(lng) or not -90 <= lat <= 90 or not -180 <= lng <= 180:

@@ -200,3 +200,14 @@ def test_missing_key_and_cep_failures():
     with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, json={
         "localidade": "Juazeiro", "uf": "BA", "logradouro": "Rua Teste"}))) as client:
         assert maps.lookup_cep("48900000", client=client)["city"] == "Juazeiro"
+
+
+@pytest.mark.parametrize("number,accepted", [("012", True), ("00012", True), ("12A", False), ("120", False)])
+def test_geocoding_accepts_equivalent_numbers_without_changing_house(maps_ready, number, accepted):
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, json=geocode_result()))) as client:
+        address = DeliveryAddress(**{**ADDRESS, "number": number})
+        if accepted:
+            assert maps._geocode(client, "public test address", expected=address) == (-9.46, -40.51)
+        else:
+            with pytest.raises(SupportError):
+                maps._geocode(client, "public test address", expected=address)
