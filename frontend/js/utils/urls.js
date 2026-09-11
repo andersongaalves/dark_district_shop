@@ -1,7 +1,7 @@
 const FRONTEND_URL = new URL("../../", import.meta.url);
 
 export const CONTACTS = {
-    whatsapp: "5574988036775"
+    whatsapp: "557488036775"
 };
 
 export const ROUTES = {
