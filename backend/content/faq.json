@@ -2,7 +2,7 @@
   {
     "id": "compra",
     "question": "Como funciona a compra?",
-    "answer": "Escolha as peças no site e selecione o tamanho e a cor, quando houver opções. Adicione os itens e clique em “Continuar pelo WhatsApp” para confirmar disponibilidade, entrega e pagamento com a loja. Adicionar itens não reserva estoque."
+    "answer": "Escolha as peças no site e selecione o tamanho e a cor, quando houver opções. Adicione os itens, preencha o endereço de entrega e calcule o frete. Confira o total e clique em “Continuar pelo WhatsApp” para confirmar disponibilidade e pagamento com a loja. Se o cálculo não estiver disponível, use “Confirmar frete com a loja”. Adicionar itens não reserva estoque."
   },
   {
     "id": "entrega",

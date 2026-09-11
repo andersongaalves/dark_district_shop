@@ -32,7 +32,7 @@ REGISTRY = {
     "buscar_por_cor": Tool(ColorArguments, search, "Busca peças com estoque na cor informada."),
     "consultar_faq": Tool(FAQArguments, consult_faq,
         "Consulta respostas oficiais sobre compra pelo WhatsApp, entrega no endereço, prazo de devolução e região atendida. "
-        "Selecione compra, entrega, devolucao ou atendimento; null retorna todos. Não informa taxa/prazo de entrega, "
+        "Selecione compra, entrega, devolucao ou atendimento; null retorna todos. Entrega explica as regras de frete; a cotação exige endereço na seleção de itens. Não informa prazo de entrega, "
         "formas de pagamento, condições extras de devolução nem confirma cidades específicas não cadastradas."),
 }
 

@@ -12,6 +12,8 @@ tem `id`, `question` e `answer`. Os tópicos são `compra`, `entrega`, `devoluca
 e reinicie API e worker após alterações, pois o conteúdo é carregado uma vez por
 processo. Não há migração de banco nesta etapa nem edição do FAQ pelo ADM.
 
+O tópico `entrega` recebe também as regras dinâmicas de frete configuradas no backend,
+compartilhadas com o cálculo do carrinho. Consulte [configuração do frete](frete.md).
 O endpoint público `GET /faq` retorna essa lista sem exigir login ou sessão de chat.
 O frontend usa a API e renderiza as respostas como texto, com perguntas expansíveis,
 estado de carregamento, opção de tentar novamente e contato com a equipe.
@@ -26,8 +28,9 @@ políticas. Perguntar sobre o FAQ preserva os filtros e produtos da conversa.
 
 Perguntas gerais sobre devolução recebem o prazo cadastrado. Pedidos como “quero
 devolver minha peça” e solicitações de atendente continuam encaminhados à equipe.
-Uma conversa em atendimento humano permanece pausada para a IA. O FAQ não calcula
-frete, define prazo de entrega, confirma endereços fora da região nem autoriza reembolsos.
+Uma conversa em atendimento humano permanece pausada para a IA. O FAQ explica a tarifa
+e a gratuidade; o valor para um endereço é calculado no formulário do carrinho.
+O FAQ não define prazo de entrega, confirma endereços fora da região nem autoriza reembolsos.
 
 ## Publicação e verificação
 

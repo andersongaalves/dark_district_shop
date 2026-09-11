@@ -7,6 +7,7 @@ import unicodedata
 from pydantic import TypeAdapter
 
 from schemas.faq import FAQItem, FAQTopic
+from services.shipping_policy import policy_description
 
 FAQ_FILE = Path(__file__).resolve().parents[1] / "content" / "faq.json"
 
@@ -20,7 +21,8 @@ def _items() -> tuple[FAQItem, ...]:
 
 
 def list_faq(topic: FAQTopic | None = None) -> list[FAQItem]:
-    return [item for item in _items() if topic is None or item.id == topic]
+    return [item.model_copy(update={"answer": item.answer + " " + policy_description()}) if item.id == "entrega" else item
+            for item in _items() if topic is None or item.id == topic]
 
 
 def match_faq(message: str) -> list[FAQItem]:
@@ -36,6 +38,10 @@ def match_faq(message: str) -> list[FAQItem]:
     text = "".join(char for char in unicodedata.normalize("NFKD", message.lower())
                    if not unicodedata.combining(char))
     returns = bool(re.search(r"\b(devolucoes|devolucao|devolver|devolvo)\b", text))
+    if not returns and re.search(r"\b(frete|entrega)\b", text) and not re.search(
+        r"\b(prazo|quando|demora|horario|horarios|dias|amanha|hoje|reembolso|estorno)\b|quanto tempo|que horas", text):
+        if re.search(r"\b(custa|custo|valor|taxa|gratis|gratuito|gratuita|calcular|calculo|km|quilometro)\b", text) or re.fullmatch(r"\s*(qual (?:e )?o )?frete[\s?!.,]*", text):
+            return list_faq("entrega")
     # Missing commercial details need staff confirmation, not an invented policy.
     if re.search(r"\b(taxa|taxas|custa|custo|valor|gratis|gratuito|gratuita|etiqueta|defeito|garantia|lavada|usada|reembolso|estorno|troca|trocar|correios|retirada)\b", text):
         return []

@@ -46,6 +46,16 @@ class Settings(BaseSettings):
     DELIVERY_LEASE_SECONDS: int = Field(default=180, ge=120, le=900)
     DELIVERY_MAX_ATTEMPTS: int = Field(default=3, ge=1, le=10)
     WORKER_POLL_SECONDS: int = Field(default=2, ge=1, le=60)
+    SHIPPING_ORIGIN_ADDRESS: str = "Chácara Patrícia, Estrada Roçado, S/N, Dom José Rodrigues, Juazeiro - BA"
+    SHIPPING_ORIGIN_LATITUDE: float = Field(default=-9.4741012, ge=-90, le=90, allow_inf_nan=False)
+    SHIPPING_ORIGIN_LONGITUDE: float = Field(default=-40.516211, ge=-180, le=180, allow_inf_nan=False)
+    SHIPPING_GOOGLE_API_KEY: SecretStr = SecretStr("")
+    SHIPPING_BASE_METERS: int = Field(default=1900, ge=0, le=100000)
+    SHIPPING_BASE_CENTS: int = Field(default=600, ge=0, le=100000)
+    SHIPPING_EXTRA_KM_CENTS: int = Field(default=150, ge=0, le=100000)
+    SHIPPING_FREE_MIN_CENTS: int = Field(default=10000, gt=0, le=10000000)
+    SHIPPING_FREE_RADIUS_METERS: int = Field(default=7000, ge=0, le=100000)
+    SHIPPING_QUOTE_SECONDS: int = Field(default=600, ge=60, le=1800)
     CORS_ORIGINS: list[str] = [
         "http://127.0.0.1:5500",
         "http://localhost:5500",

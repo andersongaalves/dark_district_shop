@@ -5,20 +5,26 @@ import { addCartItem, cartItemKey, cartCount, cartSubtotal, itemForSelection, re
     removeCartItem, validProductId, validQuantity } from "./cart_state.js";
 import { loadCart, saveCart, clearCart, CART_STORAGE_KEY } from "./cart_storage.js";
 import { createCartView } from "./cart_ui.js";
+import { quoteShipping, checkoutShipping } from "../api/shipping_api.js";
 
 export function createCartController({ fetchProduct = getProduct,
-    storage = { loadCart, saveCart, clearCart } } = {}) {
+    storage = { loadCart, saveCart, clearCart }, shippingApi = { quoteShipping, checkoutShipping } } = {}) {
     let items = storage.loadCart().map((item) => ({ ...item, validated: false, issue: "" }));
     let queue = Promise.resolve(), pending = 0, message = "", persisted = true;
+    let shippingQuote = null, quotedAddress = "", shippingRevision = 0;
     const listeners = new Set();
     const getSnapshot = () => ({ items: items.map((item) => ({ ...item })),
-        count: cartCount(items), subtotal: cartSubtotal(items), busy: pending > 0, message, persisted });
+        count: cartCount(items), subtotal: cartSubtotal(items), busy: pending > 0, message, persisted,
+        shippingQuote: shippingQuote ? { ...shippingQuote } : null });
     const emit = () => listeners.forEach((listener) => listener(getSnapshot()));
     const persist = () => { persisted = storage.saveCart(items); };
-    const run = (operation) => {
+    const invalidateShipping = () => { shippingQuote = null; quotedAddress = ""; shippingRevision++; };
+    const shippingItems = () => items.map((item) => ({ product_id: item.productId, variant_id: item.variantId, quantity: item.quantity }));
+    const run = (operation, { keepQuote = false } = {}) => {
         pending++;
         emit();
         const result = queue.catch(() => {}).then(async () => {
+            if (!keepQuote) invalidateShipping();
             message = "";
             try { return await operation(); }
             catch (error) { message = error.message; throw error; }
@@ -43,6 +49,7 @@ export function createCartController({ fetchProduct = getProduct,
     };
     return {
         getSnapshot,
+        invalidateShipping() { invalidateShipping(); message = "Calcule o frete após conferir o endereço."; emit(); },
         subscribe(listener) { listeners.add(listener); listener(getSnapshot()); return () => listeners.delete(listener); },
         add(productId, selection = {}, quantity = 1) {
             return run(async () => {
@@ -82,17 +89,50 @@ export function createCartController({ fetchProduct = getProduct,
                 message = "Itens atualizados.";
             });
         },
-        prepareCheckout() {
+        quoteShipping(address) {
+            const addressCopy = structuredClone(address);
+            return run(async () => {
+                const revision = shippingRevision;
+                if (!items.length) throw new Error("Nenhum item adicionado.");
+                await validate();
+                if (items.some((item) => !item.validated || item.issue)) throw new Error("Revise os itens sinalizados antes de calcular o frete.");
+                const quoted = await shippingApi.quoteShipping({ address: addressCopy, items: shippingItems() });
+                if (revision !== shippingRevision) throw new Error("O endereço mudou. Calcule o frete novamente.");
+                if (quoted.subtotal_cents !== Math.round(cartSubtotal(items) * 100)) throw new Error("Os preços mudaram. Atualize os itens e calcule novamente.");
+                shippingQuote = quoted;
+                quotedAddress = JSON.stringify(addressCopy);
+                message = "Frete calculado. Confira os dados e o total antes de continuar.";
+                return { ...quoted };
+            });
+        },
+        prepareCheckout(address = null, { manual = false } = {}) {
+            const addressCopy = address ? structuredClone(address) : null;
             return run(async () => {
                 if (!items.length) throw new Error("Nenhum item adicionado.");
                 const result = await validate();
                 if (items.some((item) => !item.validated || item.issue)) throw new Error("Revise os itens sinalizados antes de continuar.");
-                if (result.changed) throw new Error("Preços ou opções mudaram. Revise os valores e clique novamente para continuar.");
+                if (result.changed) { invalidateShipping(); throw new Error("Preços ou opções mudaram. Revise os valores e clique novamente para continuar."); }
+                if (addressCopy && !manual) {
+                    if (!shippingQuote || shippingQuote.expires_at * 1000 <= Date.now() || JSON.stringify(addressCopy) !== quotedAddress) {
+                        invalidateShipping();
+                        throw new Error("Calcule o frete para este endereço antes de continuar.");
+                    }
+                    try {
+                        const reply = await shippingApi.checkoutShipping({ address: addressCopy, items: shippingItems(), quote_token: shippingQuote.quote_token });
+                        return getWhatsAppUrl(reply.message);
+                    } catch (error) {
+                        if (error.status === 409) invalidateShipping();
+                        throw error;
+                    }
+                }
                 const lines = items.map((item) => `${item.quantity} × ${item.title} (ID: ${item.productId}${item.variantId === null ? "" : ` / variante ${item.variantId}`})` +
                     `${item.size ? ` — tamanho ${item.size}` : ""}${item.color ? ` — cor ${item.color}` : ""}: ${formatPrice(Math.round(item.price * 100) * item.quantity / 100)}`);
+                if (addressCopy) lines.push(`Recebedor: ${addressCopy.recipient}`, `Telefone: ${addressCopy.phone}`,
+                    `Entrega: ${addressCopy.street}, ${addressCopy.number} — ${addressCopy.neighborhood}, ${addressCopy.city}/${addressCopy.state}, CEP ${addressCopy.cep}`,
+                    `Complemento: ${addressCopy.complement || "—"}`, `Referência: ${addressCopy.reference || "—"}`, "Frete a confirmar com a loja; sem cotação automática.");
                 return getWhatsAppUrl(["Olá! Tenho interesse nestes produtos:", ...lines,
                     `Subtotal: ${formatPrice(cartSubtotal(items))}`, "Gostaria de confirmar disponibilidade, entrega e pagamento."].join("\n"));
-            });
+            }, { keepQuote: true });
         }
     };
 }
@@ -110,7 +150,9 @@ export function initCart(button) {
             onQuantity: (key, quantity) => controller.setQuantity(key, quantity),
             onRemove: (key) => controller.remove(key), onClear: () => controller.clear(),
             onRefresh: () => controller.refresh(),
-            onCheckout: async () => { window.location.assign(await controller.prepareCheckout()); }
+            onQuote: (address) => controller.quoteShipping(address),
+            onAddressChange: () => controller.invalidateShipping(),
+            onCheckout: async (address, options) => { window.location.assign(await controller.prepareCheckout(address, options)); }
         });
         controller.subscribe((state) => {
             view.render(state);

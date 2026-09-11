@@ -61,7 +61,8 @@ class RequestSecurityMiddleware:
             request_path = request_path[len(root_path):]
         is_login = request_path.rstrip("/") == "/auth/login"
         is_chat = request_path.startswith("/api/chat/")
-        private_response = is_login or is_chat or request_path.startswith("/admin/conversations") or request_path.startswith("/webhooks/whatsapp")
+        is_shipping = request_path.startswith("/shipping/")
+        private_response = is_login or is_chat or is_shipping or request_path.startswith("/admin/conversations") or request_path.startswith("/webhooks/whatsapp")
 
         async def secure_send(message):
             if private_response and message["type"] == "http.response.start":
@@ -74,6 +75,16 @@ class RequestSecurityMiddleware:
         async def reject(status, detail, headers=None):
             response = JSONResponse({"detail": detail}, status_code=status, headers=headers)
             await response(scope, receive, secure_send)
+
+        if is_shipping and scope["method"] != "OPTIONS" and request_path.rstrip("/") != "/shipping/policy":
+            client = scope.get("client")
+            address = client[0] if client else "unknown"
+            retry = scope["app"].state.shipping_ip_limiter.retry_after(address)
+            if retry is None:
+                retry = scope["app"].state.shipping_global_limiter.retry_after("all")
+            if retry is not None:
+                await reject(429, "Muitas consultas de frete. Aguarde um pouco.", {"Retry-After": str(retry)})
+                return
 
         if is_chat and scope["method"] != "OPTIONS":
             client = scope.get("client")
@@ -105,6 +116,8 @@ class RequestSecurityMiddleware:
         limit = self.max_login_body_bytes if is_login else self.max_body_bytes
         if is_chat:
             limit = min(limit, 16384)
+        if is_shipping:
+            limit = min(limit, 32768)
         lengths = [value for key, value in scope["headers"] if key.lower() == b"content-length"]
         if lengths:
             if len(lengths) != 1 or not lengths[0].isdigit() or len(lengths[0]) > 20:

@@ -96,6 +96,11 @@ que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.
 
 ## Atendimento multicanal
 
+O cálculo de frete está em `/shipping/quote`, com consulta de CEP e conferência
+da cotação em `/shipping/checkout`. Veja [configuração e regras](../docs/frete.md).
+É necessário configurar `SHIPPING_GOOGLE_API_KEY` no servidor para calcular trajetos.
+Esta funcionalidade não precisa de migration.
+
 O agente também reconhece abreviações, sugere correções com confirmação e mantém
 diálogos de ajuda e refinamento. Veja [conversa e sugestões de escrita](../docs/agente-interacao.md).
 

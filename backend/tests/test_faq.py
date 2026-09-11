@@ -64,7 +64,7 @@ def test_return_requests_and_human_requests_still_take_priority(message, monkeyp
 
 
 @pytest.mark.parametrize("message", [
-    "Quanto custa a entrega?", "Qual o prazo de entrega?", "A entrega é grátis?",
+    "Qual o prazo de entrega?",
     "Posso devolver uma roupa usada?", "A devolução tem taxa?",
 ])
 def test_unregistered_policy_details_are_referred_to_staff(message):

@@ -23,6 +23,8 @@ os.environ["LLM_API_KEY"] = ""
 os.environ["WHATSAPP_ACCESS_TOKEN"] = ""
 os.environ["META_APP_SECRET"] = ""
 os.environ["WHATSAPP_VERIFY_TOKEN"] = ""
+os.environ["SHIPPING_GOOGLE_API_KEY"] = ""
+os.environ["SHIPPING_ORIGIN_ADDRESS"] = ""
 
 from database import Base, get_db
 from main import app
@@ -56,6 +58,7 @@ def public_client(db, monkeypatch):
     for name, attempts, window in [
         ("chat_ip_limiter", 60, 60), ("chat_creation_limiter", 10, 3600),
         ("chat_session_limiter", 15, 60), ("chat_global_limiter", 120, 60),
+        ("shipping_ip_limiter", 15, 60), ("shipping_global_limiter", 60, 60),
     ]:
         monkeypatch.setattr(app.state, name, LoginRateLimiter(attempts=attempts, window_seconds=window))
     monkeypatch.setattr(app.state, "login_limiter", LoginRateLimiter(

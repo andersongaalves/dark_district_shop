@@ -109,7 +109,7 @@ def test_multiple_faq_questions_and_product_search_are_answered_together(client,
 def test_unregistered_question_keeps_conversation_available(public_client):
     visitor = session(public_client)
     response = public_client.post("/api/chat/messages", headers=headers(visitor),
-        json={"message_id": str(uuid4()), "message": "Qual o frete?"})
+        json={"message_id": str(uuid4()), "message": "Qual o prazo de entrega?"})
     assert response.json()["status"] == "AI" and not response.json()["handoff"]
     assert response.json()["actions"][0]["type"] == "human_handoff"
     reply = public_client.post("/api/chat/messages", headers=headers(visitor),

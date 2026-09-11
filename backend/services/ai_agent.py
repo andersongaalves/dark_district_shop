@@ -44,7 +44,8 @@ dados, pois preços e estoque podem ter mudado. Prefira uma chamada com todos os
 Se não houver informação suficiente, não invente uma busca: deixe de chamar ferramentas.
 O servidor formulará a resposta final a partir dos resultados reais; não escreva fatos
 comerciais em texto livre. Consulte consultar_faq para políticas cadastradas da loja;
-não presuma taxas, prazos de entrega, formas de pagamento ou condições de devolução
+não calcule uma cotação de frete por conta própria: o site consulta endereço e trajeto
+na API de frete. Não presuma prazos de entrega, formas de pagamento ou condições de devolução
 que não constem no FAQ. Nunca afirme ser humano."""
 
 
@@ -88,7 +89,7 @@ def _rules(text):
         if wants_products(text):
             return None
         message = "\n\n".join(item.answer for item in faqs)
-        if re.search(r"\b(pix|cartao|parcela|parcelam|parcelamento|taxa|custo|garantia|gratis)\b", text):
+        if re.search(r"\b(pix|cartao|parcela|parcelam|parcelamento|garantia)\b", text) or (re.search(r"\b(taxa|custo|gratis)\b", text) and not any(item.id == "entrega" for item in faqs)):
             message += "\n\nOs demais detalhes precisam ser confirmados com a equipe. Quer falar com alguém?"
         return AgentResponse(message=message, actions=[
             _suggest("Ver peças", "Mostre as peças disponíveis"), ChatAction(label="Falar com a equipe")])

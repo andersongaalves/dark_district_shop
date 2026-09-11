@@ -2,6 +2,7 @@ import { escapeHtml } from "../utils/dom.js";
 import { formatPrice } from "../utils/format.js";
 import { getImageUrl, getProductUrl } from "../utils/urls.js";
 import { cartItemKey, MAX_CART_QUANTITY } from "./cart_state.js";
+import { createShippingView } from "./shipping_ui.js";
 
 function renderItem(item, busy) {
     const image = getImageUrl(item.image);
@@ -28,6 +29,8 @@ export function createCartView(actions) {
         <button type="button" data-close aria-label="Fechar carrinho">×</button></div><div data-cart-content></div>`;
     document.body.appendChild(dialog);
     const content = dialog.querySelector("[data-cart-content]");
+    const shipping = actions.onQuote ? createShippingView(actions) : null;
+    if (shipping) dialog.append(shipping.element);
     let restoreFocus;
     const handle = (operation) => { Promise.resolve().then(operation).catch(() => {}); };
     dialog.addEventListener("click", (event) => {
@@ -38,7 +41,7 @@ export function createCartView(actions) {
         if (button.hasAttribute("data-remove")) handle(() => actions.onRemove(key));
         if (button.hasAttribute("data-clear")) handle(actions.onClear);
         if (button.hasAttribute("data-refresh")) handle(actions.onRefresh);
-        if (button.hasAttribute("data-checkout")) handle(actions.onCheckout);
+        if (button.hasAttribute("data-checkout") && !shipping) handle(actions.onCheckout);
     });
     dialog.addEventListener("change", (event) => {
         if (event.target.matches("[data-quantity]")) {
@@ -46,7 +49,7 @@ export function createCartView(actions) {
         }
     });
     return {
-        open() { if (!dialog.open) dialog.showModal(); },
+        open() { if (!dialog.open) dialog.showModal(); shipping?.loadPolicy(); },
         render(state) {
             const focused = document.activeElement;
             const focusControl = ["data-quantity", "data-remove", "data-clear", "data-refresh", "data-checkout"]
@@ -56,15 +59,16 @@ export function createCartView(actions) {
                 <div class="cart-drawer__items">${state.items.length ? state.items.map((item) => renderItem(item, state.busy)).join("") : "<p>Nenhum item adicionado.</p>"}</div>
                 <div class="cart-drawer__summary">
                     <p class="cart-drawer__subtotal">Subtotal estimado <strong>${state.items.every((item) => item.validated) ? formatPrice(state.subtotal) : "A confirmar"}</strong></p>
-                    <p>Adicionar itens não reserva estoque. Entrega e pagamento serão combinados com a loja.</p>
+                    <p>Adicionar itens não reserva estoque. Confira o frete antes de continuar; o pagamento será combinado com a loja.</p>
                     <p role="status" aria-live="polite">${escapeHtml(state.busy ? "Consultando…" : state.message)}</p>
                     ${state.persisted ? "" : '<p role="alert">Não foi possível salvar neste navegador. Os itens ficarão disponíveis apenas nesta página.</p>'}
-                    <button class="cart-drawer__checkout" type="button" data-checkout ${state.busy || !state.items.length ? "disabled" : ""}>Continuar pelo WhatsApp</button>
+                    ${shipping ? "" : `<button class="cart-drawer__checkout" type="button" data-checkout ${state.busy || !state.items.length ? "disabled" : ""}>Continuar pelo WhatsApp</button>`}
                     <div class="cart-drawer__actions">
                         <button type="button" data-refresh ${state.busy ? "disabled" : ""}>Atualizar disponibilidade</button>
                         <button type="button" data-clear aria-label="Limpar carrinho" ${state.busy || !state.items.length ? "disabled" : ""}>Limpar <span class="cart-icon" aria-hidden="true"></span></button>
                     </div>
                 </div>`;
+            shipping?.render(state);
             if (restoreFocus && !state.busy) {
                 const parent = restoreFocus.key ? [...content.querySelectorAll("[data-key]")].find((node) => node.dataset.key === restoreFocus.key) : content;
                 if (dialog.open) (parent?.querySelector(`[${restoreFocus.attribute}]`) ?? dialog.querySelector("[data-close]")).focus();
