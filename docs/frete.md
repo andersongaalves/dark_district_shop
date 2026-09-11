@@ -35,7 +35,7 @@ A base de R$ 6,00 e as condições de gratuidade foram definidas pela loja.
 2. Defina `SHIPPING_GOOGLE_API_KEY` no ambiente do backend. Não coloque a chave
    no frontend, no Git ou em mensagens. Os demais parâmetros estão em
    `backend/.env.example`, com valores monetários em centavos e distâncias em metros.
-3. Publique o backend e reinicie API e worker, que compartilha as regras do FAQ.
+3. Publique o backend e reinicie a API, que serve o FAQ e o agente do site.
    Publique o frontend. Não há migration nova nesta funcionalidade.
 4. Confira `GET /shipping/policy`: `configured` indica presença da configuração,
    não comprova credenciais ou habilitação das APIs. Teste um endereço conhecido

@@ -48,7 +48,7 @@ def test_message_is_idempotent_and_reused_id_cannot_change_content(db, monkeypat
     assert error.value.status_code == 409
 
 
-def test_two_channels_use_same_agent_and_recent_memory_is_bounded(db, monkeypatch):
+def test_web_agent_memory_remains_bounded_and_whatsapp_cannot_enter_agent(db, monkeypatch):
     monkeypatch.setattr(settings, "CHAT_HISTORY_MESSAGES", 2)
     seen = []
     def respond(session, incoming):
@@ -58,11 +58,13 @@ def test_two_channels_use_same_agent_and_recent_memory_is_bounded(db, monkeypatc
     conversation = web(db)
     for text in ["camiseta", "tamanho M", "E preta?"]:
         service.receive(db, conversation, str(uuid4()), text)
-    service.receive_whatsapp(db, "123456:5511999999999", "wamid.test", "camiseta")
-    assert len(seen[-2].history) == 2
-    assert seen[-2].context == {"size": "M"}
-    assert seen[-2].channel == "web" and seen[-1].channel == "whatsapp"
-    assert seen[-1].history == []
+    whatsapp = customer_service.resolve_whatsapp(db, "123456:5511999999999")
+    with pytest.raises(SupportError):
+        service.receive(db, whatsapp, "wamid.test", "camiseta")
+    assert len(seen) == 3
+    assert len(seen[-1].history) == 2
+    assert seen[-1].context == {"size": "M"}
+    assert all(item.channel == "web" for item in seen)
 
 
 def test_handoff_suppresses_automation_and_can_resume(db, monkeypatch):

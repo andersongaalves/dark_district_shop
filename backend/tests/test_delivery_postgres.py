@@ -19,6 +19,8 @@ from channels.whatsapp_channel import IncomingText
 from database import Base
 from models.atendimento import DeliveryJob
 from services import delivery_service as delivery
+from services.whatsapp_human_service import persist_messages
+from models.atendimento import Conversation, Message
 
 
 @pytest.fixture
@@ -81,3 +83,20 @@ def test_postgres_workers_keep_identity_order_and_allow_other_customers(pg_sessi
     assert delivery.claim_next(pg_sessions) is None
     delivery._finish(first, "sent", session_factory=pg_sessions)
     assert delivery.claim_next(pg_sessions).payload["message_id"] == "wamid.second"
+
+
+@pytest.mark.parametrize("duplicate", [True, False])
+def test_concurrent_human_webhooks_reserve_exactly_one_greeting(pg_sessions, duplicate):
+    barrier = Barrier(2)
+    def receive(index):
+        barrier.wait(timeout=10)
+        with pg_sessions() as db:
+            return persist_messages(db, [message("wamid.human" if duplicate else f"wamid.human-{index}")])
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        greetings = list(executor.map(receive, range(2)))
+    assert sum(map(len, greetings)) == 1
+    with pg_sessions() as db:
+        assert db.query(Conversation).one().status == "HUMAN"
+        assert db.query(Message).filter_by(sender="assistant").count() == 1
+        assert db.query(Message).filter_by(sender="customer").count() == (1 if duplicate else 2)
+        assert db.query(DeliveryJob).count() == 0

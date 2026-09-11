@@ -33,7 +33,7 @@ def test_public_faq_contains_approved_policies_without_auth_or_chat(public_clien
     assert answers["atendimento"] == "Atendemos Juazeiro e região."
 
 
-@pytest.mark.parametrize("channel", ["web", "whatsapp"])
+@pytest.mark.parametrize("channel", ["web"])
 @pytest.mark.parametrize("message,topic", [
     ("Como funciona a compra?", "compra"),
     ("Como compro pelo site?", "compra"),

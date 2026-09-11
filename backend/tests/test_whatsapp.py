@@ -16,7 +16,7 @@ from channels.whatsapp_channel import IncomingText, render_text
 from core.config import settings
 from database import get_db
 from integrations.whatsapp.client import WhatsAppDeliveryError, send_text
-from models.atendimento import ChannelIdentity, Conversation, Customer, DeliveryJob
+from models.atendimento import ChannelIdentity, Conversation, Customer, DeliveryJob, Message
 from models.produto import Produto
 from routers.whatsapp import router
 from schemas.atendimento import AgentResponse, ChatReply
@@ -27,6 +27,8 @@ from tools.catalog_tools import serialize_product
 
 @pytest.fixture(autouse=True)
 def whatsapp_settings(monkeypatch):
+    from services import whatsapp_human_service
+    monkeypatch.setattr(whatsapp_human_service, "send_text", lambda *_: "wamid.welcome")
     for name, value in {
         "WHATSAPP_ENABLED": True, "WHATSAPP_VERIFY_TOKEN": SecretStr("test-verification"),
         "META_APP_SECRET": SecretStr("test-signing-secret"),
@@ -95,15 +97,13 @@ def test_disabled_whatsapp_does_not_accept_events(wa_client, monkeypatch):
     assert post_event(wa_client, payload()).status_code == 503
 
 
-def test_webhook_persists_and_deduplicates_before_worker(wa_client, db):
+def test_webhook_persists_and_deduplicates_without_worker(wa_client, db):
     event = payload()
     assert post_event(wa_client, event).status_code == 200
     assert post_event(wa_client, event).status_code == 200
-    jobs = db.scalars(select(DeliveryJob)).all()
-    assert len(jobs) == 1
-    assert jobs[0].status == "pending" and jobs[0].attempts == 0
-    assert jobs[0].payload["text"] == "Tem cropped preto M?"
-    assert db.scalars(select(Conversation)).all() == []
+    assert db.scalars(select(DeliveryJob)).all() == []
+    assert db.query(Message).filter_by(sender="customer").count() == 1
+    assert db.query(Conversation).one().status == "HUMAN"
 
 
 def test_raw_body_signature_cannot_be_reused_after_tampering(wa_client, db):
@@ -285,13 +285,14 @@ def test_database_failure_after_meta_acceptance_never_resends(db, sessions, conv
     monkeypatch.setattr(delivery, "_finish", offline)
     with pytest.raises(RuntimeError):
         delivery.run_once(session_factory=sessions,
+                          receiver=lambda *_: None,
                           sender=lambda *_: sends.append(1) or "wamid.accepted")
     monkeypatch.setattr(delivery, "_finish", original_finish)
     db.refresh(job)
     assert job.status == "processing"
     job.locked_at = datetime.now(timezone.utc) - timedelta(seconds=settings.DELIVERY_LEASE_SECONDS + 1)
     db.commit()
-    assert not delivery.run_once(session_factory=sessions, sender=lambda *_: sends.append(1))
+    assert not delivery.run_once(session_factory=sessions, receiver=lambda *_: None, sender=lambda *_: sends.append(1))
     db.refresh(job)
     assert job.status == "uncertain" and len(sends) == 1
 
@@ -385,40 +386,3 @@ def test_delivery_order_query_compiles_to_postgres_row_locks():
     sql = str(delivery.ready_jobs_query(datetime.now(timezone.utc)).compile(dialect=postgresql.dialect()))
     assert "FOR UPDATE SKIP LOCKED" in sql
     assert "NOT (EXISTS" in sql and "routing_key" in sql
-
-
-def test_signed_webhook_through_real_agent_and_catalog_to_mocked_meta(client, db, sessions):
-    from models.atendimento import Message
-    from test_catalog_tools import create_product
-    create_product(client, variants=[{"size": "M", "color": "Preto", "quantity": 2}])
-    event = payload(text="Tem camiseta preta M?")
-    assert post_event(client, event).status_code == 200
-    sent = []
-    send = lambda recipient, body: sent.append((recipient, body)) or "wamid.sent"
-    assert delivery.run_once(session_factory=sessions, sender=send)
-    assert sent == []
-    assert delivery.run_once(session_factory=sessions, sender=send)
-    assert len(sent) == 1 and "M / Preto: 2 un." in sent[0][1]
-    assert "pages/produto/index.html?id=prod-001" in sent[0][1]
-    assert post_event(client, event).status_code == 200
-    assert not delivery.run_once(session_factory=sessions, sender=send)
-    db.expire_all()
-    assert db.query(Message).filter_by(sender="customer").count() == 1
-    assert post_event(client, payload(message_id="wamid.human", text="Quero atendente")).status_code == 200
-    assert delivery.run_once(session_factory=sessions, sender=send)
-    assert delivery.run_once(session_factory=sessions, sender=send)
-    assert len(sent) == 2
-    assert post_event(client, payload(message_id="wamid.waiting", text="E camiseta G?")).status_code == 200
-    assert delivery.run_once(session_factory=sessions, sender=send)
-    assert not delivery.run_once(session_factory=sessions, sender=send)
-    assert len(sent) == 2
-
-
-def test_whatsapp_uses_the_same_published_faq(client, sessions):
-    item = next(item for item in client.get("/faq").json() if item["id"] == "entrega")
-    assert post_event(client, payload(text=item["question"])).status_code == 200
-    sent = []
-    send = lambda recipient, body: sent.append(body) or "wamid.faq"
-    assert delivery.run_once(session_factory=sessions, sender=send)
-    assert delivery.run_once(session_factory=sessions, sender=send)
-    assert sent == [item["answer"]]

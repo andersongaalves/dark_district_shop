@@ -1,5 +1,8 @@
 from io import StringIO
 from pathlib import Path
+import logging.config
+
+import pytest
 
 from alembic import command
 from alembic.autogenerate import compare_metadata
@@ -10,6 +13,13 @@ from pydantic import SecretStr
 
 from core.config import settings
 from database import Base
+
+
+@pytest.fixture(autouse=True)
+def preserve_test_logging(monkeypatch):
+    # Alembic's fileConfig otherwise disables application loggers globally and
+    # removes pytest's capture handlers from unrelated tests in this process.
+    monkeypatch.setattr(logging.config, "fileConfig", lambda *args, **kwargs: None)
 
 
 def test_migrations_match_models_on_fresh_database(tmp_path, monkeypatch):

@@ -96,8 +96,9 @@ que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.
 
 ## Atendimento multicanal
 
-Para separar API e WhatsApp no Render, siga [o guia de deploy do worker](../docs/render-whatsapp-worker.md),
-com comandos dos dois serviços, variáveis, migrations, encerramento e validação da fila.
+O WhatsApp utiliza atendimento humano com uma única saudação automática por conversa,
+enviada pela API. Não requer Background Worker e não chama o agente. Consulte
+[a configuração atual do Render](../docs/render-whatsapp-worker.md).
 
 O cálculo de frete está em `/shipping/quote`, com consulta de CEP e conferência
 da cotação em `/shipping/checkout`. Veja [configuração e regras](../docs/frete.md).
@@ -112,15 +113,17 @@ O FAQ público está em `GET /faq`. A página e o agente usam as respostas de
 `consultar_faq` consulta a mesma fonte. Esta etapa não requer migration; veja
 [edição, publicação e funcionamento do FAQ](../docs/faq.md).
 
-O Web Chat e o adapter oficial WhatsApp compartilham `conversation_service`, o
-agente, ferramentas de catálogo e o banco existente. A migration `c94e123a6d53`,
-após as ofertas, cria identidades, conversas, mensagens e jobs persistentes.
+O Web Chat continua usando `conversation_service`, o agente e as ferramentas de catálogo.
+O WhatsApp usa `whatsapp_human_service` e compartilha somente o banco e os registros
+de clientes, identidades, conversas e mensagens. A migration `c94e123a6d53` continua
+necessária; a mudança para atendimento humano não precisa de nova migration.
 
 Veja [.env.example](.env.example) e [o guia de atendimento](../docs/agente-multicanal.md)
-para execução, API, provider, Meta, worker, retenção e limitações. Para testar buscas
+para execução, API, provider, Meta, retenção e limitações. Para testar buscas
 locais, mantenha `LLM_PROVIDER=disabled`; WhatsApp começa desativado. Ativar o provider
-requer modelo e chave apenas no backend. Ativar WhatsApp requer credenciais Meta e
-um processo separado `python -m worker`. Nenhuma dessas integrações inicia sozinha.
+requer modelo e chave apenas no backend, para o site. Ativar WhatsApp requer as
+credenciais Meta no mesmo Web Service. `worker.py` permanece para manutenção;
+`python -m worker` e `--once` encerram sem consumir a fila antiga.
 
 O comando recomendado da API com os logs de atendimento é:
 

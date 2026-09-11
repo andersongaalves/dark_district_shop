@@ -29,7 +29,7 @@ class IncomingText:
 
 
 def parse_messages(payload: dict, *, waba_id: str, phone_number_id: str,
-                   max_message_length: int) -> list[IncomingText]:
+                   max_message_length: int, business_phone_number: str = "") -> list[IncomingText]:
     """Keep only validated, incoming text; delivery receipts never become prompts."""
     if not isinstance(payload, dict) or payload.get("object") != "whatsapp_business_account":
         raise InvalidWebhook("Objeto de webhook inválido.")
@@ -56,6 +56,8 @@ def parse_messages(payload: dict, *, waba_id: str, phone_number_id: str,
             metadata = value.get("metadata", {})
             if not isinstance(metadata, dict) or str(metadata.get("phone_number_id", "")) != phone_number_id:
                 raise UnexpectedAccount("Número de webhook inesperado.")
+            own_numbers = {re.sub(r"\D", "", number) for number in
+                           (business_phone_number, str(metadata.get("display_phone_number", ""))) if number}
             messages = value.get("messages", [])
             if not isinstance(messages, list) or len(messages) > 100:
                 raise InvalidWebhook("Mensagens de webhook inválidas.")
@@ -64,7 +66,11 @@ def parse_messages(payload: dict, *, waba_id: str, phone_number_id: str,
                     raise InvalidWebhook("Mensagem de webhook inválida.")
                 if message.get("type") != "text":
                     continue
+                if message.get("from_me") or message.get("is_echo") or message.get("echo"):
+                    continue
                 sender, message_id = message.get("from"), message.get("id")
+                if sender in own_numbers:
+                    continue
                 body = message.get("text", {})
                 body = body.get("body") if isinstance(body, dict) else None
                 if (not isinstance(sender, str) or not re.fullmatch(r"[0-9]{5,20}", sender)

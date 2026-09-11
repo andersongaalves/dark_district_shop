@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from models.atendimento import Channel, ChannelIdentity, Conversation, Customer, DeliveryJob, Message, Sender, new_id, utc_now
 from schemas.atendimento import AgentInput, AgentResponse, ChatAction, ChatHistory, ChatReply, HistoryEntry, StoredMessage
-from services.customer_service import SupportError, resolve_whatsapp
+from services.customer_service import SupportError
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,8 @@ def _replay(message, conversation):
 
 
 def receive(db: Session, conversation: Conversation, message_id: str, text: str) -> ChatReply:
+    if conversation.channel == "whatsapp":
+        raise SupportError("WhatsApp utiliza atendimento exclusivamente humano.", 409)
     if not text.strip() or len(text) > settings.CHAT_MAX_MESSAGE_LENGTH or "\x00" in text:
         raise SupportError("Digite uma mensagem de até 2000 caracteres.", 422)
     if not message_id or len(message_id) > 200:
@@ -141,10 +143,6 @@ def receive(db: Session, conversation: Conversation, message_id: str, text: str)
         db.commit()
 
 
-def receive_whatsapp(db: Session, external_id: str, message_id: str, text: str) -> ChatReply:
-    return receive(db, resolve_whatsapp(db, external_id), message_id, text)
-
-
 def history(db: Session, conversation: Conversation) -> ChatHistory:
     rows = db.scalars(select(Message).where(Message.conversation_id == conversation.id)
         .order_by(Message.created_at.desc(), Message.id.desc()).limit(100)).all()
@@ -158,6 +156,8 @@ def change_status(db: Session, conversation_id: str, status: str):
     conversation = db.scalar(select(Conversation).where(Conversation.id == conversation_id).with_for_update())
     if not conversation:
         raise SupportError("Conversa não encontrada.", 404)
+    if conversation.channel == "whatsapp" and status != "HUMAN":
+        raise SupportError("WhatsApp permanece em atendimento humano.", 409)
     conversation.status = status
     conversation.version += 1
     conversation.updated_at = utc_now()

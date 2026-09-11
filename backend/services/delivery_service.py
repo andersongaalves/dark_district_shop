@@ -228,8 +228,10 @@ def run_once(*, session_factory=SessionLocal, receiver=None, sender=None) -> boo
     if not settings.WHATSAPP_ENABLED:
         return False
     if receiver is None:
-        from services.conversation_service import receive_whatsapp
-        receiver = receive_whatsapp
+        # Historical queue utilities remain available for explicit future use.
+        # Production WhatsApp now runs entirely in the API; never drain old AI
+        # jobs or send their replies just because a worker is still running.
+        return False
     job = claim_next(session_factory)
     if job is None:
         return False

@@ -1,9 +1,8 @@
-"""Validate and persist Meta events; the worker performs external processing."""
+"""Signed WhatsApp messages go to human support with one initial greeting."""
 
 import hashlib
 import hmac
 import json
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
@@ -13,10 +12,9 @@ from starlette.concurrency import run_in_threadpool
 from channels.whatsapp_channel import InvalidWebhook, UnexpectedAccount, parse_messages
 from core.config import settings
 from database import get_db
-from services.delivery_service import enqueue_inbound
+from services.whatsapp_human_service import receive_messages
 
 router = APIRouter(prefix="/webhooks/whatsapp", tags=["WhatsApp"])
-logger = logging.getLogger(__name__)
 
 
 def require_webhook_configuration():
@@ -53,11 +51,11 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)):
         payload = json.loads(body)
         messages = parse_messages(payload, waba_id=settings.WHATSAPP_WABA_ID,
                                   phone_number_id=settings.WHATSAPP_PHONE_NUMBER_ID,
+                                  business_phone_number=settings.WHATSAPP_BUSINESS_PHONE_NUMBER,
                                   max_message_length=settings.CHAT_MAX_MESSAGE_LENGTH)
     except UnexpectedAccount:
         raise HTTPException(status_code=403, detail="Conta de webhook inesperada.") from None
     except (InvalidWebhook, ValueError, UnicodeDecodeError):
         raise HTTPException(status_code=400, detail="Evento de webhook inválido.") from None
-    count = await run_in_threadpool(enqueue_inbound, db, messages)
-    logger.info("whatsapp_events_persisted count=%s", count)
+    await run_in_threadpool(receive_messages, db, messages)
     return {"received": True}

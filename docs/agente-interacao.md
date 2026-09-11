@@ -1,8 +1,9 @@
 # Conversa e sugestões de escrita
 
-O agente compartilhado pelo site e WhatsApp ganhou novos diálogos sem depender de
+O agente do Web Chat do site oferece diálogos sem depender de
 um modelo externo. O provider configurado continua disponível para planejar buscas
 mais complexas; preços, estoque, descrições e políticas vêm do cadastro da loja.
+O WhatsApp agora é humano, com uma única saudação fixa e sem uso desse agente.
 
 ## O que mudou
 
@@ -42,14 +43,12 @@ após o clique. Não há execução de URL ou código em ações.
 
 Atalhos ficam desativados durante envio, retentativa pendente e atendimento humano.
 Sugestões de respostas antigas também são desativadas quando a conversa avança,
-evitando confirmar uma correção fora de contexto. No WhatsApp, o cliente pode
-digitar as respostas sugeridas no texto; não foram adicionados templates ou botões Meta.
+evitando confirmar uma correção fora de contexto. Essas sugestões são exclusivas do site.
 
 ## Publicação e testes
 
-Não há migração, nova dependência ou troca de modelo nesta etapa. Atualize API e
-worker com o novo contrato de ações antes de publicar o frontend. As credenciais
-e flags de ativação dos canais continuam as mesmas.
+Não há migração, nova dependência ou troca de modelo nesta etapa. Atualize a API
+com o contrato de ações antes de publicar o frontend. Não é necessário worker.
 
 Os testes cobrem confirmação/rejeição, isolamento entre sessões, preservação do texto
 original, busca com dados atuais, refinamentos, perguntas mistas, limites de ações,

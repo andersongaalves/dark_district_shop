@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     META_APP_SECRET: SecretStr = SecretStr("")
     WHATSAPP_ACCESS_TOKEN: SecretStr = SecretStr("")
     WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_BUSINESS_PHONE_NUMBER: str = ""
     WHATSAPP_WABA_ID: str = ""
     WHATSAPP_GRAPH_VERSION: str = ""
     WHATSAPP_HTTP_TIMEOUT_SECONDS: int = Field(default=15, ge=1, le=60)
