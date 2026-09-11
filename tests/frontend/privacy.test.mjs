@@ -15,6 +15,8 @@ test("privacy policy is readable without JavaScript, authentication or API calls
     for (const link of document.querySelectorAll('a[href^="#"]')) {
         assert.ok(document.getElementById(link.hash.slice(1)), `Missing target ${link.hash}`);
     }
+    const { renderPrivacyContacts } = await import("../../frontend/js/sections/privacidade.js");
+    renderPrivacyContacts();
     for (const link of document.querySelectorAll("[data-privacy-contact]")) {
         assert.equal(link.href, `https://wa.me/${CONTACTS.whatsapp}`);
     }

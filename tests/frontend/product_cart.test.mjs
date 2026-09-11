@@ -32,6 +32,9 @@ test("product selection adds to persistent cart, updates header/drawer and retai
     assert.match(document.querySelector(".produto__cart-status").textContent, /Adicionado/);
     document.querySelector(".produto__interest").click();
     assert.equal(new URL(interestUrl).hostname, "wa.me");
+    assert.equal(new URL(interestUrl).pathname, "/557488036775");
+    assert.equal(new URL(interestUrl).searchParams.get("text"),
+        "Olá! Tenho interesse neste produto:\n\nProduto: Peça\nID: piece-001\nPreço: R$ 79,90\nCor: Preto\nTamanho: G");
     document.querySelector(".header-cart").click();
     assert.equal(document.querySelector("dialog").open, true);
     await eventually(() => assert.equal(getCart().getSnapshot().busy, false));

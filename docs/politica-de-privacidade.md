@@ -27,8 +27,10 @@ Após a publicação automática, confirme a URL pública antes de cadastrá-la 
 
 ## Conteúdo e manutenção
 
-O contato foi reutilizado de `CONTACTS.whatsapp`, já utilizado pelo site. O teste
-verifica que os contatos estáticos da política continuam iguais ao oficial.
+Os links de contato são preenchidos pelo controller usando `getWhatsAppUrl()` e
+`CONTACTS.whatsapp`, a única configuração do número no frontend. O HTML mantém o
+nome do canal e uma âncora para o rodapé; JavaScript habilita os links diretos.
+Os testes verificam que a política usa o mesmo destino dos demais contatos.
 Não foram encontrados CNPJ, razão social ou endereço empresarial confiáveis para
 identificar o controlador; esses dados não foram inventados. A equipe deve
 complementar a identificação quando houver dados empresariais oficiais confirmados.

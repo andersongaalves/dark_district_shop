@@ -35,13 +35,8 @@ export function getProductListUrl(type) {
 }
 
 export function getWhatsAppUrl(message = "") {
-    const url = new URL(
-        `https://wa.me/${CONTACTS.whatsapp}`
-    );
-
-    if (message) url.searchParams.set("text", message);
-
-    return url.href;
+    const url = `https://wa.me/${CONTACTS.whatsapp}`;
+    return message ? `${url}?text=${encodeURIComponent(message)}` : url;
 }
 
 export function getImageUrl(value) {
