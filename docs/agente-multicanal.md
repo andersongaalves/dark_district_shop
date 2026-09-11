@@ -222,6 +222,9 @@ Abra `http://localhost:5500`. Para links locais nas respostas, configure
 
 ## Migration e publicação
 
+Para operar com Web Service e Background Worker separados, veja a configuração
+atualizada de [API e worker WhatsApp no Render](render-whatsapp-worker.md).
+
 A migration `c94e123a6d53` descende de `b83d012f5c42`. Cria `customers`,
 `channel_identities`, `conversations`, `messages` e `delivery_jobs`, com índices,
 restrições e chaves estrangeiras. Não altera os dados nem o schema dos produtos.

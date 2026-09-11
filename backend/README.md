@@ -96,6 +96,9 @@ que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.
 
 ## Atendimento multicanal
 
+Para separar API e WhatsApp no Render, siga [o guia de deploy do worker](../docs/render-whatsapp-worker.md),
+com comandos dos dois serviços, variáveis, migrations, encerramento e validação da fila.
+
 O cálculo de frete está em `/shipping/quote`, com consulta de CEP e conferência
 da cotação em `/shipping/checkout`. Veja [configuração e regras](../docs/frete.md).
 É necessário configurar `SHIPPING_GOOGLE_API_KEY` no servidor para calcular trajetos.

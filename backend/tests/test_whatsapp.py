@@ -263,7 +263,7 @@ def test_safe_retry_is_bounded_and_unknown_delivery_is_never_retried(db, session
     assert not delivery.run_once(session_factory=sessions, receiver=lambda *_: None, sender=uncertain)
 
 
-def test_old_lease_owner_cannot_complete_reclaimed_job(db, sessions):
+def test_old_lease_owner_cannot_complete_reclaimed_job(db, sessions, caplog):
     delivery.enqueue_inbound(db, [incoming()])
     first = delivery.claim_next(sessions)
     job = db.get(DeliveryJob, first.id)
@@ -273,6 +273,27 @@ def test_old_lease_owner_cannot_complete_reclaimed_job(db, sessions):
     delivery._finish(first, "sent", session_factory=sessions)
     db.refresh(job)
     assert job.status == "processing" and job.attempts == second.attempts
+    assert "whatsapp_job_ownership_lost" in caplog.text
+
+
+def test_database_failure_after_meta_acceptance_never_resends(db, sessions, conversation, monkeypatch):
+    job = add_outbound(db, conversation)
+    sends = []
+    original_finish = delivery._finish
+    def offline(*args, **kwargs):
+        raise RuntimeError("database unavailable after send")
+    monkeypatch.setattr(delivery, "_finish", offline)
+    with pytest.raises(RuntimeError):
+        delivery.run_once(session_factory=sessions,
+                          sender=lambda *_: sends.append(1) or "wamid.accepted")
+    monkeypatch.setattr(delivery, "_finish", original_finish)
+    db.refresh(job)
+    assert job.status == "processing"
+    job.locked_at = datetime.now(timezone.utc) - timedelta(seconds=settings.DELIVERY_LEASE_SECONDS + 1)
+    db.commit()
+    assert not delivery.run_once(session_factory=sessions, sender=lambda *_: sends.append(1))
+    db.refresh(job)
+    assert job.status == "uncertain" and len(sends) == 1
 
 
 def test_cloud_api_client_uses_official_endpoint_and_bounded_text():

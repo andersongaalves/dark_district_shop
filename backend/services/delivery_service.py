@@ -117,7 +117,10 @@ def claim_next(session_factory=SessionLocal) -> ClaimedJob | None:
             DeliveryJob.id == candidate.id, DeliveryJob.status == "pending",
         ).values(status="processing", attempts=job.attempts, locked_at=now, updated_at=now))
         db.commit()
-        return job if claimed.rowcount else None
+        if claimed.rowcount:
+            logger.info("whatsapp_job_claimed job_id=%s kind=%s attempt=%s", job.id, job.kind, job.attempts)
+            return job
+        return None
 
 
 def _finish(job, status, *, error_code=None, session_factory=SessionLocal, extra_payload=None):
@@ -127,8 +130,11 @@ def _finish(job, status, *, error_code=None, session_factory=SessionLocal, extra
     if extra_payload:
         values["payload"] = {**job.payload, **extra_payload}
     with session_factory() as db:
-        db.execute(update(DeliveryJob).where(*_ownership(job)).values(**values))
+        finished = db.execute(update(DeliveryJob).where(*_ownership(job)).values(**values))
         db.commit()
+    if not finished.rowcount:
+        logger.warning("whatsapp_job_ownership_lost job_id=%s", job.id)
+        return
     logger.info("whatsapp_job_finished job_id=%s status=%s error_code=%s", job.id, status, error_code)
 
 
