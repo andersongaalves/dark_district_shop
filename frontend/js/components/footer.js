@@ -44,6 +44,7 @@ export function renderFooter() {
                             </a>
                         </li>
                         <li><a href="${ROUTES.faq}">FAQ</a></li>
+                        <li><a href="${ROUTES.privacidade}">Política de Privacidade</a></li>
                     </ul>
                 </div>
 

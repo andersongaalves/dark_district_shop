@@ -80,6 +80,10 @@ do provider, webhook, estados humanos e limites de validação.
 
 ## Testes
 
+A [Política de Privacidade](../docs/politica-de-privacidade.md) é publicada em
+`/politica-de-privacidade`, com conteúdo estático e link no rodapé compartilhado.
+Use Wrangler para validar a URL sem extensão localmente.
+
 Na raiz, com Node.js 22.22.2+, 24.15.0+ ou 26+:
 
 ```powershell

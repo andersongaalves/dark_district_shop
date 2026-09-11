@@ -82,6 +82,7 @@ test("URLs work at a hosting root and under a local frontend subdirectory", asyn
         assert.equal(urls.ROUTES.catalogo, `${base}pages/catalogo/index.html`);
         assert.equal(urls.ROUTES.drops, `${base}pages/drops/index.html`);
         assert.equal(urls.ROUTES.faq, `${base}pages/faq/index.html`);
+        assert.equal(urls.ROUTES.privacidade, `${base}politica-de-privacidade`);
         assert.equal(urls.getProductListUrl("brecho"), `${base}pages/brecho/index.html`);
         assert.equal(urls.getProductListUrl("drop"), `${base}pages/drops/index.html`);
         assert.equal(urls.ROUTES.destaques, `${base}index.html#destaques`);
