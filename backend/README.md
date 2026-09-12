@@ -96,8 +96,11 @@ que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.
 
 ## Atendimento multicanal
 
-O WhatsApp utiliza atendimento humano com uma única saudação automática por conversa,
-enviada pela API. Não requer Background Worker e não chama o agente. Consulte
+O WhatsApp utiliza atendimento humano e uma única saudação automática por conversa,
+enviada pela API, com inbox em `/admin/#atendimento`. Antes de iniciar a nova versão, aplique
+`python -m alembic upgrade head` (migration `d05f234b7e64` para `CLOSED`).
+Consulte [a inbox administrativa](../docs/whatsapp-inbox.md) para uso, endpoints e testes.
+Não requer Background Worker e não chama o agente. Consulte
 [a configuração atual do Render](../docs/render-whatsapp-worker.md).
 
 O cálculo de frete está em `/shipping/quote`, com consulta de CEP e conferência
@@ -116,7 +119,7 @@ O FAQ público está em `GET /faq`. A página e o agente usam as respostas de
 O Web Chat continua usando `conversation_service`, o agente e as ferramentas de catálogo.
 O WhatsApp usa `whatsapp_human_service` e compartilha somente o banco e os registros
 de clientes, identidades, conversas e mensagens. A migration `c94e123a6d53` continua
-necessária; a mudança para atendimento humano não precisa de nova migration.
+necessária; a inbox adiciona `d05f234b7e64` para aceitar conversas encerradas.
 
 Veja [.env.example](.env.example) e [o guia de atendimento](../docs/agente-multicanal.md)
 para execução, API, provider, Meta, retenção e limitações. Para testar buscas

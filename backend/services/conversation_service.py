@@ -156,8 +156,10 @@ def change_status(db: Session, conversation_id: str, status: str):
     conversation = db.scalar(select(Conversation).where(Conversation.id == conversation_id).with_for_update())
     if not conversation:
         raise SupportError("Conversa não encontrada.", 404)
-    if conversation.channel == "whatsapp" and status != "HUMAN":
+    if conversation.channel == "whatsapp" and status not in {"HUMAN", "WAITING_HUMAN", "CLOSED"}:
         raise SupportError("WhatsApp permanece em atendimento humano.", 409)
+    if conversation.channel == "web" and status == "CLOSED":
+        raise SupportError("Use o encerramento da sessão web.", 409)
     conversation.status = status
     conversation.version += 1
     conversation.updated_at = utc_now()

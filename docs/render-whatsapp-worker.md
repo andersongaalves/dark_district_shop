@@ -11,11 +11,13 @@ Meta webhook → FastAPI → Customer / ChannelIdentity / Conversation / Message
                      → reservar uma única saudação → commit
                      → enviar texto fixo pela WhatsApp Cloud API → registrar resultado
 
-Conversation.status = HUMAN
+Conversation.status = WAITING_HUMAN → assumir no admin → HUMAN → encerrar → CLOSED
 Próximas mensagens → somente persistência, sem novas respostas automáticas
 ```
 
-O status HUMAN é gravado junto com a primeira mensagem, antes da chamada externa.
+O status WAITING_HUMAN é gravado junto com a primeira mensagem, antes da chamada externa.
+Use a [inbox no admin](whatsapp-inbox.md) para responder. Nova mensagem após CLOSED
+reabre como WAITING_HUMAN sem repetir a saudação.
 Mesmo se o envio falhar, o contato permanece salvo e o atendimento continua humano.
 O webhook mantém validação GET, HMAC-SHA256 sobre os bytes originais, conferência
 de WABA e Phone Number ID. Não chama AI Agent, LLM ou ferramentas de catálogo.
@@ -83,8 +85,7 @@ humano não consulta nenhuma delas. Preserve também CORS, frete, catálogo e au
    Não crie um novo Background Worker.
 3. Confira as variáveis acima no Web Service existente. Não coloque segredos em
    arquivos versionados, logs ou mensagens.
-4. A mudança humana não adiciona migration. Para instalações que ainda não tenham
-   as tabelas de atendimento, aplique as migrations existentes primeiro:
+4. A inbox requer a migration `d05f234b7e64`, que permite `CLOSED`. Antes de iniciar a API:
 
    ```sh
    python -m alembic upgrade head
@@ -148,8 +149,9 @@ conciliados no banco atualmente. Este fluxo não cria novos `DeliveryJob`.
 A conversa é bloqueada durante a transação PostgreSQL. A mensagem de entrada e
 a reserva da saudação são persistidas com restrições únicas antes de qualquer
 envio. Um webhook repetido não envia de novo. A conexão de banco é liberada antes
-da chamada à Meta. Os novos textos mantêm HUMAN, inclusive se uma conversa antiga
-estava AI; o endpoint administrativo também impede reativar IA para WhatsApp.
+da chamada à Meta. Novos textos mantêm HUMAN quando o atendimento já foi assumido;
+conversas AI ou CLOSED passam a WAITING_HUMAN. O endpoint administrativo impede
+reativar IA para WhatsApp.
 
 Uma conversa corresponde à identidade persistida do contato neste número da
 empresa. Não reinicia a saudação por dia, mensagem ou tempo ocioso. Conversas

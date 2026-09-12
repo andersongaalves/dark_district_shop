@@ -1,0 +1,33 @@
+.inbox { display: grid; grid-template-columns: 320px minmax(0, 1fr); border: 1px solid #25252d; border-radius: 6px; background: #121218; }
+.inbox [hidden] { display: none !important; }
+.inbox-sidebar { padding: 16px; border-right: 1px solid #25252d; }
+.inbox button, .inbox select, .inbox textarea { border: 1px solid #33333d; border-radius: 4px; padding: 10px; background: #18181f; color: #fff; }
+.inbox button:disabled { opacity: .5; cursor: default; }
+.inbox button:focus-visible, .inbox textarea:focus-visible, .inbox select:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+.inbox-list { max-height: 65vh; overflow-y: auto; margin-top: 16px; }
+.inbox-item { display: block; width: 100%; text-align: left; margin-bottom: 8px; overflow-wrap: anywhere; }
+.inbox-item.is-waiting { border-left: 4px solid #a78bfa; }
+.inbox-item[aria-pressed="true"] { background: #31204b; }
+.inbox-item strong, .inbox-item span, .inbox-item time { display: block; margin-bottom: 5px; }
+.inbox-item span, .inbox-item time { color: #bbb; font-size: 13px; }
+.inbox-item p { margin: 8px 0; }
+.inbox-pagination, .inbox-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.inbox-thread { padding: 16px; min-width: 0; }
+.inbox-messages { height: 48vh; min-height: 240px; overflow: auto; padding: 16px 0; display: flex; flex-direction: column; gap: 12px; }
+.inbox-message { flex-shrink: 0; max-width: 85%; padding: 12px; border-radius: 6px; background: #23232d; overflow-wrap: anywhere; }
+.inbox-message.from-customer { align-self: flex-start; }
+.inbox-message.from-store { align-self: flex-end; background: #31204b; }
+.inbox-message p { white-space: pre-wrap; margin: 8px 0; line-height: 1.5; }
+.inbox-message time, .inbox-message small { display: block; font-size: 12px; color: #ccc; margin-top: 5px; }
+.inbox form { display: grid; gap: 10px; }
+.inbox textarea { width: 100%; resize: vertical; }
+.inbox [type="submit"] { background: #7c3aed; justify-self: end; min-width: 100px; }
+.inbox-notice { min-height: 20px; color: #ddd; }
+.inbox [data-back] { display: none; }
+@media (max-width: 720px) {
+    .inbox { grid-template-columns: minmax(0, 1fr); }
+    .inbox-sidebar { border: 0; }
+    .inbox:not(.has-selection) .inbox-thread, .inbox.has-selection .inbox-sidebar { display: none; }
+    .inbox [data-back] { display: inline-block; }
+    .inbox-message { max-width: 95%; }
+}

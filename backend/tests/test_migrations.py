@@ -50,6 +50,35 @@ def test_postgresql_migration_compiles_offline(monkeypatch):
         assert f"CREATE TABLE {table}" in sql
     assert "ALTER TABLE produtos ALTER COLUMN category_id SET NOT NULL" in sql
     assert "setval" in sql
+    assert "CHECK (status IN ('AI','WAITING_HUMAN','HUMAN','CLOSED'))" in sql
+
+
+def test_inbox_migration_preserves_conversation_history(tmp_path, monkeypatch):
+    url = f"sqlite:///{(tmp_path / 'inbox.sqlite').as_posix()}"
+    monkeypatch.setattr(settings, "DATABASE_URL", SecretStr(url))
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    command.upgrade(config, "c94e123a6d53")
+    engine = create_engine(url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("INSERT INTO customers VALUES ('customer', CURRENT_TIMESTAMP)"))
+            connection.execute(text("INSERT INTO channel_identities VALUES ('identity', 'customer', 'whatsapp', '123:5511999999999', NULL, CURRENT_TIMESTAMP)"))
+            connection.execute(text("""INSERT INTO conversations
+                (id,customer_id,identity_id,channel,status,context,failure_count,version,created_at,updated_at)
+                VALUES ('conversation','customer','identity','whatsapp','HUMAN','{}',0,0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)"""))
+            connection.execute(text("""INSERT INTO messages (id,conversation_id,external_id,sender,content,metadata,created_at)
+                VALUES ('message','conversation','wamid.original','customer','Olá','{}',CURRENT_TIMESTAMP)"""))
+        command.upgrade(config, "head")
+        with engine.begin() as connection:
+            connection.execute(text("UPDATE conversations SET status='CLOSED'"))
+            assert connection.scalar(text("SELECT content FROM messages")) == "Olá"
+            assert connection.execute(text("PRAGMA foreign_key_check")).all() == []
+        command.downgrade(config, "c94e123a6d53")
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT status FROM conversations")) == "HUMAN"
+            assert connection.scalar(text("SELECT content FROM messages")) == "Olá"
+    finally:
+        engine.dispose()
 
 
 def test_upgrade_and_downgrade_preserve_populated_database(tmp_path, monkeypatch):

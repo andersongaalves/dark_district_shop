@@ -96,7 +96,32 @@ def test_concurrent_human_webhooks_reserve_exactly_one_greeting(pg_sessions, dup
         greetings = list(executor.map(receive, range(2)))
     assert sum(map(len, greetings)) == 1
     with pg_sessions() as db:
-        assert db.query(Conversation).one().status == "HUMAN"
+        assert db.query(Conversation).one().status == "WAITING_HUMAN"
         assert db.query(Message).filter_by(sender="assistant").count() == 1
         assert db.query(Message).filter_by(sender="customer").count() == (1 if duplicate else 2)
         assert db.query(DeliveryJob).count() == 0
+
+
+def test_concurrent_manual_replies_send_one_meta_request(pg_sessions, monkeypatch):
+    from core.config import settings
+    from services import whatsapp_inbox_service as inbox
+    monkeypatch.setattr(settings, "WHATSAPP_PHONE_NUMBER_ID", "1234567")
+    calls = []
+    monkeypatch.setattr(inbox, "send_text", lambda *args: calls.append(args) or "wamid.manual")
+    with pg_sessions() as db:
+        persist_messages(db, [message("wamid.customer")])
+        conversation = db.query(Conversation).one()
+        conversation.status = "HUMAN"
+        conversation_id = conversation.id
+        db.commit()
+    request_id, barrier = str(uuid4()), Barrier(2)
+    def send(_):
+        barrier.wait(timeout=10)
+        with pg_sessions() as db:
+            return inbox.send_manual(db, conversation_id, request_id, "Resposta", 1)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(send, range(2)))
+    assert len(calls) == 1
+    assert results[0]["id"] == results[1]["id"]
+    with pg_sessions() as db:
+        assert db.query(Message).filter_by(sender="human").count() == 1

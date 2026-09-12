@@ -31,7 +31,7 @@ def test_initial_greeting_exactly_once_without_worker(wa_client, db, monkeypatch
     assert sent == [("5599988887777", human.WELCOME_TEXT)]
     assert human.WELCOME_TEXT == ("Olá! 🖤 Recebemos sua mensagem.\n\nEm breve, um atendente da Dark District entrará em contato com você.\n\nObrigado pela preferência.\nDark District — Vista o seu lado obscuro.")
     assert db.query(Customer).count() == db.query(ChannelIdentity).count() == db.query(Conversation).count() == 1
-    assert db.query(Conversation).one().status == "HUMAN"
+    assert db.query(Conversation).one().status == "WAITING_HUMAN"
     assert db.query(Message).filter_by(sender="customer").count() == 4
     greeting = db.query(Message).filter_by(sender="assistant").one()
     assert greeting.extra_data["delivery_status"] == "sent"
@@ -54,7 +54,7 @@ def test_send_failure_preserves_contact_and_never_retries_duplicate(wa_client, d
         assert post_event(wa_client, payload(message_id="wamid.later")).status_code == 200
     assert len(calls) == 1
     assert db.query(Message).filter_by(sender="customer").count() == 2
-    assert db.query(Conversation).one().status == "HUMAN"
+    assert db.query(Conversation).one().status == "WAITING_HUMAN"
     assert db.query(Message).filter_by(sender="assistant").one().extra_data["delivery_status"] in {"failed", "uncertain"}
     assert "SECRET" not in caplog.text
 
@@ -88,7 +88,7 @@ def test_batch_persists_all_messages_before_greeting(wa_client, db, monkeypatch)
     def send(*_):
         assert not db.in_transaction()
         assert db.query(Message).filter_by(sender="customer").count() == 2
-        assert db.query(Conversation).one().status == "HUMAN"
+        assert db.query(Conversation).one().status == "WAITING_HUMAN"
         db.rollback()
         return "wamid.sent"
     monkeypatch.setattr(human, "send_text", send)
@@ -112,7 +112,7 @@ def test_different_contacts_each_receive_one_greeting(wa_client, db, monkeypatch
 def test_admin_cannot_reenable_whatsapp_ai(wa_client, db):
     assert post_event(wa_client, payload()).status_code == 200
     conversation = db.query(Conversation).one()
-    for status in ["AI", "WAITING_HUMAN"]:
+    for status in ["AI"]:
         with pytest.raises(SupportError):
             conversation_service.change_status(db, conversation.id, status)
     assert conversation_service.change_status(db, conversation.id, "HUMAN")["status"] == "HUMAN"
@@ -129,7 +129,7 @@ def test_old_queue_is_not_processed_and_old_human_conversation_gets_no_welcome(w
     assert not delivery_service.run_once()
     assert post_event(wa_client, payload()).status_code == 200
     db.expire_all()
-    assert db.query(Conversation).one().status == "HUMAN"
+    assert db.query(Conversation).one().status == "WAITING_HUMAN"
     assert db.query(DeliveryJob).one().status == "cancelled"
 
 

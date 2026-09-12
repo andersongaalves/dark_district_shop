@@ -103,7 +103,7 @@ def test_webhook_persists_and_deduplicates_without_worker(wa_client, db):
     assert post_event(wa_client, event).status_code == 200
     assert db.scalars(select(DeliveryJob)).all() == []
     assert db.query(Message).filter_by(sender="customer").count() == 1
-    assert db.query(Conversation).one().status == "HUMAN"
+    assert db.query(Conversation).one().status == "WAITING_HUMAN"
 
 
 def test_raw_body_signature_cannot_be_reused_after_tampering(wa_client, db):

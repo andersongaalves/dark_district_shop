@@ -26,6 +26,7 @@ class ConversationStatus(str, Enum):
     AI = "AI"
     WAITING_HUMAN = "WAITING_HUMAN"
     HUMAN = "HUMAN"
+    CLOSED = "CLOSED"
 
 
 class Sender(str, Enum):
@@ -60,7 +61,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     __table_args__ = (
         CheckConstraint("channel IN ('web','whatsapp')", name="ck_conversation_channel"),
-        CheckConstraint("status IN ('AI','WAITING_HUMAN','HUMAN')", name="ck_conversation_status"),
+        CheckConstraint("status IN ('AI','WAITING_HUMAN','HUMAN','CLOSED')", name="ck_conversation_status"),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id", ondelete="CASCADE"), index=True)

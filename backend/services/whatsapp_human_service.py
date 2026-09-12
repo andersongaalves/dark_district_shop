@@ -35,11 +35,6 @@ def persist_messages(db, messages):
         conversation = resolve_whatsapp(db, incoming.external_identity)
         conversation = db.scalar(select(Conversation).where(Conversation.id == conversation.id)
                                  .with_for_update().execution_options(populate_existing=True))
-        conversation.status = "HUMAN"
-        conversation.version += 1
-        conversation.processing_token = None
-        conversation.processing_until = None
-        conversation.updated_at = utc_now()
         # Freeze old AI outbox entries for this identity during the transition.
         db.execute(update(DeliveryJob).where(DeliveryJob.routing_key == incoming.external_identity,
             DeliveryJob.status == "pending").values(status="cancelled", error_code="human_only"))
@@ -48,10 +43,17 @@ def persist_messages(db, messages):
         if duplicate:
             db.commit()
             continue
+        if conversation.status != "HUMAN":
+            conversation.status = "WAITING_HUMAN"
+        conversation.version += 1
+        conversation.processing_token = None
+        conversation.processing_until = None
+        conversation.updated_at = utc_now()
         has_history = db.scalar(select(Message.id).where(Message.conversation_id == conversation.id).limit(1))
         try:
             db.add(Message(conversation_id=conversation.id, external_id=incoming.message_id,
-                           sender="customer", content=incoming.text))
+                           sender="customer", content=incoming.text,
+                           extra_data={"received_timestamp": incoming.timestamp}))
             greeting = None
             if not has_history:
                 within_window = -300 <= utc_now().timestamp() - incoming.timestamp < 24 * 60 * 60
