@@ -15,7 +15,7 @@ class WhatsAppDeliveryError(Exception):
         self.uncertain = uncertain
 
 
-def send_text(recipient: str, text: str, *, http_client=None) -> str:
+def send_text(recipient: str, text: str, *, http_client=None, template=None) -> str:
     """Send once. Do not retry ambiguous requests: Meta does not promise idempotence."""
     token = settings.WHATSAPP_ACCESS_TOKEN.get_secret_value()
     phone = settings.WHATSAPP_PHONE_NUMBER_ID
@@ -35,7 +35,8 @@ def send_text(recipient: str, text: str, *, http_client=None) -> str:
                 f"https://graph.facebook.com/{version}/{phone}/messages",
                 headers={"Authorization": f"Bearer {token}"},
                 json={"messaging_product": "whatsapp", "recipient_type": "individual",
-                      "to": recipient, "type": "text", "text": {"preview_url": False, "body": text}},
+                      "to": recipient, **({"type": "template", "template": template} if template else
+                      {"type": "text", "text": {"preview_url": False, "body": text}})},
             )
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout):
             raise WhatsAppDeliveryError("whatsapp_connection", retryable=True) from None
@@ -58,3 +59,8 @@ def send_text(recipient: str, text: str, *, http_client=None) -> str:
     finally:
         if owned:
             client.close()
+
+
+def send_template(recipient, name, language, parameters):
+    return send_text(recipient, "notification", template={"name": name, "language": {"code": language},
+        "components": [{"type": "body", "parameters": [{"type": "text", "text": value} for value in parameters]}]})

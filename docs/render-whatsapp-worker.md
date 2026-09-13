@@ -1,5 +1,9 @@
 # WhatsApp humano no Render — somente Web Service
 
+Para ativar AUTO/ASSIST, siga [o guia híbrido](whatsapp-hybrid.md). Este guia descreve
+o modo legado (`AI_WHATSAPP_ENABLED=false`); no híbrido a fila pode ser consumida
+pelo próprio Web Service, sem um Background Worker pago obrigatório.
+
 Este guia substitui a preparação anterior de Background Worker. O WhatsApp agora
 usa apenas o **Web Service existente `dark-district-api`**. Não é necessário criar
 `dark-district-worker` nem contratar Background Worker pago.

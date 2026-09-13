@@ -156,11 +156,24 @@ def change_status(db: Session, conversation_id: str, status: str):
     conversation = db.scalar(select(Conversation).where(Conversation.id == conversation_id).with_for_update())
     if not conversation:
         raise SupportError("Conversa não encontrada.", 404)
-    if conversation.channel == "whatsapp" and status not in {"HUMAN", "WAITING_HUMAN", "CLOSED"}:
+    if conversation.channel == "whatsapp" and status == "AI" and not (
+        settings.AI_WHATSAPP_ENABLED and conversation.ai_mode == "AUTO"):
         raise SupportError("WhatsApp permanece em atendimento humano.", 409)
     if conversation.channel == "web" and status == "CLOSED":
         raise SupportError("Use o encerramento da sessão web.", 409)
+    if conversation.channel == "whatsapp" and settings.AI_WHATSAPP_ENABLED and status == "WAITING_HUMAN":
+        from services.whatsapp_hybrid_service import handoff
+        source = db.scalar(select(Message).where(Message.conversation_id == conversation_id, Message.sender == "customer")
+                           .order_by(Message.created_at.desc()).limit(1))
+        if source:
+            handoff(db, conversation, "HUMAN_REQUESTED", source, transition=False)
+            db.commit()
+            return {"conversation_id": conversation_id, "status": status}
     conversation.status = status
+    if conversation.channel == "whatsapp" and status == "HUMAN" and conversation.ai_mode == "AUTO":
+        conversation.ai_mode = "ASSIST"
+    if conversation.channel == "whatsapp" and status != "WAITING_HUMAN":
+        conversation.handoff_reason = None
     conversation.version += 1
     conversation.updated_at = utc_now()
     if status == "AI":

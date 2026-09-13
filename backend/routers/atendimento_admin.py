@@ -12,6 +12,19 @@ from models.usuario import Usuario
 from services import whatsapp_inbox_service as inbox
 from services import conversation_service
 from services.customer_service import SupportError
+from models.atendimento import AIMode
+from schemas.atendimento import StrictModel
+from services import whatsapp_ai_service
+
+
+class AIModeUpdate(StrictModel):
+    ai_mode: AIMode
+
+
+class SuggestionRequest(StrictModel):
+    force: bool = False
+
+
 
 def private_response(response: Response):
     response.headers["Cache-Control"] = "no-store"
@@ -19,6 +32,16 @@ def private_response(response: Response):
 
 router = APIRouter(prefix="/admin/conversations", tags=["Atendimento administrativo"],
                    dependencies=[Depends(get_current_user), Depends(private_response)])
+
+
+@router.patch("/{conversation_id}/ai-mode")
+def update_ai_mode(conversation_id: UUID, data: AIModeUpdate, db: Session = Depends(get_db)):
+    return whatsapp_ai_service.change_mode(db, str(conversation_id), data.ai_mode.value)
+
+
+@router.post("/{conversation_id}/ai-suggestion")
+def ai_suggestion(conversation_id: UUID, data: SuggestionRequest, db: Session = Depends(get_db)):
+    return whatsapp_ai_service.suggest(db, str(conversation_id), data.force)
 
 
 @router.get("")

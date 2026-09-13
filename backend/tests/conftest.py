@@ -19,6 +19,9 @@ os.environ["SECRET_KEY"] = secrets.token_urlsafe(32)
 # External integrations are opt-in in tests regardless of the operator's environment.
 os.environ["LLM_PROVIDER"] = "disabled"
 os.environ["WHATSAPP_ENABLED"] = "false"
+os.environ["AI_WHATSAPP_ENABLED"] = "false"
+os.environ["WHATSAPP_ATTENDANT_NUMBER"] = ""
+os.environ["WHATSAPP_ATTENDANT_TEMPLATE"] = ""
 os.environ["LLM_API_KEY"] = ""
 os.environ["WHATSAPP_ACCESS_TOKEN"] = ""
 os.environ["META_APP_SECRET"] = ""

@@ -24,10 +24,22 @@
 .inbox [type="submit"] { background: #7c3aed; justify-self: end; min-width: 100px; }
 .inbox-notice { min-height: 20px; color: #ddd; }
 .inbox [data-back] { display: none; }
+.inbox-ai { padding: 16px; border-left: 1px solid #25252d; min-width: 0; grid-column: 2; }
+.inbox-ai summary { cursor: pointer; font-weight: bold; margin-bottom: 16px; }
+.inbox-ai p { line-height: 1.5; color: #ccc; }
+.inbox-ai label { display: grid; gap: 8px; }
+.inbox-ai-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.inbox .inbox-suggestion { display: block; width: 100%; white-space: pre-wrap; text-align: left; overflow-wrap: anywhere; margin-top: 16px; line-height: 1.5; }
+@media (min-width: 1100px) {
+    .inbox { grid-template-columns: 250px minmax(0, 1fr) 260px; }
+    .inbox-ai { grid-column: 3; grid-row: 1; }
+}
 @media (max-width: 720px) {
     .inbox { grid-template-columns: minmax(0, 1fr); }
     .inbox-sidebar { border: 0; }
     .inbox:not(.has-selection) .inbox-thread, .inbox.has-selection .inbox-sidebar { display: none; }
     .inbox [data-back] { display: inline-block; }
     .inbox-message { max-width: 95%; }
+    .inbox-ai { grid-column: 1; border-left: 0; border-top: 1px solid #25252d; }
+    .inbox:not(.has-selection) .inbox-ai { display: none; }
 }

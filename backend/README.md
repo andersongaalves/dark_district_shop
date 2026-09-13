@@ -96,6 +96,11 @@ que precisam utilizá-los para assinar/verificar tokens ou conectar ao banco.
 
 ## Atendimento multicanal
 
+O modo híbrido opcional adiciona AUTO, ASSIST e OFF à inbox, preservando o Web Chat.
+Consulte [o guia atual de atendimento híbrido](../docs/whatsapp-hybrid.md) para a
+migration `e16a345c8f75`, variáveis, notificações e execução da fila no Web Service.
+As descrições humanas abaixo continuam válidas com `AI_WHATSAPP_ENABLED=false`.
+
 O WhatsApp utiliza atendimento humano e uma única saudação automática por conversa,
 enviada pela API, com inbox em `/admin/#atendimento`. Antes de iniciar a nova versão, aplique
 `python -m alembic upgrade head` (migration `d05f234b7e64` para `CLOSED`).

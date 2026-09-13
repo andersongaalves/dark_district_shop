@@ -125,3 +125,22 @@ def test_concurrent_manual_replies_send_one_meta_request(pg_sessions, monkeypatc
     assert results[0]["id"] == results[1]["id"]
     with pg_sessions() as db:
         assert db.query(Message).filter_by(sender="human").count() == 1
+
+
+def test_hybrid_duplicate_events_reserve_one_cycle_and_notification(pg_sessions, monkeypatch):
+    from core.config import settings
+    from services import whatsapp_hybrid_service as hybrid
+    monkeypatch.setattr(settings, "WHATSAPP_AI_DEFAULT_MODE", "AUTO")
+    barrier = Barrier(2)
+    incoming = IncomingText("1234567", "5511999990000", "hybrid-duplicate", "Quero comprar", int(datetime.now(timezone.utc).timestamp()))
+    def receive(_):
+        barrier.wait(timeout=10)
+        with pg_sessions() as db:
+            hybrid.receive_messages(db, [incoming])
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(receive, range(2)))
+    with pg_sessions() as db:
+        assert db.query(Message).filter_by(sender="customer").count() == 1
+        assert db.query(Conversation).one().cycle == 1
+        jobs = db.query(DeliveryJob).all()
+        assert len([job for job in jobs if job.payload["purpose"] == "notification"]) == 1

@@ -15,9 +15,11 @@ from routers.webchat import router as webchat_router
 from routers.whatsapp import router as whatsapp_router
 from routers.atendimento_admin import router as atendimento_router
 from core.support_logging import configure_support_logging
+from services.whatsapp_consumer import lifespan
 
 
 app = FastAPI(
+    lifespan=lifespan,
     title="Dark District API",
     version="1.0.0"
 )

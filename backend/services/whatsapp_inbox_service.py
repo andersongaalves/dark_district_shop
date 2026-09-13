@@ -9,7 +9,7 @@ from sqlalchemy.orm import aliased
 
 from core.config import settings
 from integrations.whatsapp.client import send_text, WhatsAppDeliveryError
-from models.atendimento import ChannelIdentity, Conversation, Message, utc_now
+from models.atendimento import ChannelIdentity, Conversation, Message, DeliveryJob, utc_now
 from services.customer_service import SupportError, aware
 from services import conversation_service
 
@@ -26,9 +26,11 @@ def require_conversation(db, conversation_id, *, lock=False):
     return conversation
 
 
-def message_view(message):
+def message_view(message, job_status=None):
     metadata = message.extra_data or {}
-    status = metadata.get("delivery_status")
+    status = job_status or metadata.get("delivery_status")
+    if status == "processing":
+        status = "sending"
     if status == "sending" and aware(message.created_at) < utc_now() - timedelta(minutes=2):
         status = "uncertain"
     return {"id": message.id, "sender": message.sender, "content": message.content,
@@ -48,7 +50,8 @@ def list_inbox(db, status=None, limit=50, offset=0):
     rows = db.execute(query.order_by(rank, Conversation.updated_at.desc(), Conversation.id.desc())
                       .offset(offset).limit(limit + 1)).all()
     return {"items": [{"conversation_id": c.id, "phone": identity.external_id.split(":", 1)[-1],
-                       "status": c.status, "updated_at": aware(c.updated_at),
+                       "status": c.status, "ai_mode": c.ai_mode, "handoff_reason": c.handoff_reason,
+                       "cycle": c.cycle, "updated_at": aware(c.updated_at),
                        "last_message": message_view(m) if m else None}
                       for c, identity, m in rows[:limit]], "has_more": len(rows) > limit}
 
@@ -62,8 +65,12 @@ def get_messages(db, conversation_id, limit=50, before=None):
             raise SupportError("Página de histórico inválida.", 422)
         query = query.where(tuple_(Message.created_at, Message.id) < tuple_(cursor.created_at, cursor.id))
     rows = db.scalars(query.order_by(Message.created_at.desc(), Message.id.desc()).limit(limit + 1)).all()
+    jobs = dict(db.execute(select(DeliveryJob.external_id, DeliveryJob.status).where(
+        DeliveryJob.conversation_id == conversation_id, DeliveryJob.external_id.in_(
+            [m.external_id for m in rows if m.external_id and m.external_id.startswith("hybrid:")]))).all())
     return {"conversation_id": conversation_id, "status": conversation.status,
-            "messages": [message_view(m) for m in reversed(rows[:limit])],
+            "ai_mode": conversation.ai_mode, "handoff_reason": conversation.handoff_reason, "cycle": conversation.cycle,
+            "messages": [message_view(m, jobs.get(m.external_id)) for m in reversed(rows[:limit])],
             "has_more": len(rows) > limit}
 
 
@@ -99,8 +106,9 @@ def send_manual(db, conversation_id, request_id, text, admin_id):
         timestamp = aware(legacy_time).timestamp() if legacy_time else 0
     if not -300 <= utc_now().timestamp() - timestamp < 86400:
         raise SupportError("A janela de 24 horas expirou. Aguarde uma nova mensagem do cliente.", 409)
+    cycle = conversation.cycle
     message = Message(conversation_id=conversation_id, external_id=key, sender="human", content=text,
-                      extra_data={"delivery_status": "sending", "admin_id": admin_id})
+                      extra_data={"delivery_status": "sending", "admin_id": admin_id, "cycle": cycle})
     db.add(message)
     conversation.updated_at = utc_now()
     try:
@@ -116,7 +124,7 @@ def send_manual(db, conversation_id, request_id, text, admin_id):
         if previous.content != text:
             raise SupportError("Identificador já utilizado por outra mensagem.", 409)
         return message_view(previous)
-    metadata = {"admin_id": admin_id}
+    metadata = {"admin_id": admin_id, "cycle": cycle}
     try:
         meta_id = send_text(recipient, text)
         metadata.update(delivery_status="sent", meta_message_id=meta_id)

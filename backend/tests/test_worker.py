@@ -7,7 +7,7 @@ import sys
 import pytest
 
 import worker
-from services import delivery_service
+from services import delivery_service, whatsapp_hybrid_service
 
 
 @pytest.mark.parametrize("arguments", [[], ["--once"]])
@@ -31,3 +31,13 @@ def test_python_module_once_from_backend_needs_no_meta_or_llm():
         cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True, timeout=15)
     assert result.returncode == 0, result.stderr
     assert "processed=false" in result.stdout
+
+
+def test_hybrid_once_processes_one_job_and_exits(monkeypatch, caplog):
+    processed = []
+    monkeypatch.setattr(whatsapp_hybrid_service, "run_once", lambda: processed.append(True) or True)
+    monkeypatch.setattr(worker.engine, "dispose", lambda: None)
+    with caplog.at_level(logging.INFO):
+        assert worker.main(["--hybrid", "--once"]) == 0
+    assert processed == [True]
+    assert "hybrid_once processed=True" in caplog.text

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     LLM_MAX_OUTPUT_TOKENS: int = Field(default=600, ge=100, le=2000)
     LLM_MAX_TOOL_CALLS: int = Field(default=4, ge=1, le=8)
     WHATSAPP_ENABLED: bool = False
+    AI_WHATSAPP_ENABLED: bool = False
+    WHATSAPP_AI_DEFAULT_MODE: Literal["AUTO", "ASSIST", "OFF"] = "OFF"
+    WHATSAPP_EMBEDDED_CONSUMER: bool = True
+    WHATSAPP_ATTENDANT_NUMBER: str = Field(default="", pattern=r"^([0-9]{5,20})?$")
+    WHATSAPP_ATTENDANT_TEMPLATE: str = Field(default="", pattern=r"^[a-z0-9_]*$")
+    WHATSAPP_ATTENDANT_TEMPLATE_LANGUAGE: str = "pt_BR"
     WHATSAPP_VERIFY_TOKEN: SecretStr = SecretStr("")
     META_APP_SECRET: SecretStr = SecretStr("")
     WHATSAPP_ACCESS_TOKEN: SecretStr = SecretStr("")

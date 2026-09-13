@@ -57,5 +57,8 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Conta de webhook inesperada.") from None
     except (InvalidWebhook, ValueError, UnicodeDecodeError):
         raise HTTPException(status_code=400, detail="Evento de webhook inválido.") from None
-    await run_in_threadpool(receive_messages, db, messages)
+    handler = receive_messages
+    if settings.AI_WHATSAPP_ENABLED:
+        from services.whatsapp_hybrid_service import receive_messages as handler
+    await run_in_threadpool(handler, db, messages)
     return {"received": True}

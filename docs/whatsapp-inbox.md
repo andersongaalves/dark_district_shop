@@ -1,5 +1,9 @@
 # Inbox de WhatsApp no admin
 
+O [modo híbrido opcional](whatsapp-hybrid.md) amplia esta inbox com AUTO/ASSIST/OFF.
+Com ele ativado, cada reabertura após CLOSED inicia um novo ciclo e repete a saudação
+uma vez. O restante deste guia descreve o modo humano legado e o envio manual comum.
+
 Acesse `/admin/#atendimento`, entre com o usuário administrativo existente e clique
 em **WhatsApp**. O frontend nunca recebe credenciais da Meta. O fluxo usa os mesmos
 Customer, ChannelIdentity, Conversation e Message e o mesmo PostgreSQL da API.

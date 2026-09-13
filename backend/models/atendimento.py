@@ -36,6 +36,25 @@ class Sender(str, Enum):
     SYSTEM = "system"
 
 
+class AIMode(str, Enum):
+    AUTO = "AUTO"
+    ASSIST = "ASSIST"
+    OFF = "OFF"
+
+
+class HandoffReason(str, Enum):
+    HUMAN_REQUESTED = "HUMAN_REQUESTED"
+    PURCHASE_INTENT = "PURCHASE_INTENT"
+    PAYMENT = "PAYMENT"
+    ORDER_SUPPORT = "ORDER_SUPPORT"
+    COMPLAINT = "COMPLAINT"
+    RETURN_EXCHANGE = "RETURN_EXCHANGE"
+    NEGOTIATION = "NEGOTIATION"
+    LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    AI_FAILURE = "AI_FAILURE"
+    DELIVERY_ISSUE = "DELIVERY_ISSUE"
+
+
 class Customer(Base):
     __tablename__ = "customers"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -62,12 +81,18 @@ class Conversation(Base):
     __table_args__ = (
         CheckConstraint("channel IN ('web','whatsapp')", name="ck_conversation_channel"),
         CheckConstraint("status IN ('AI','WAITING_HUMAN','HUMAN','CLOSED')", name="ck_conversation_status"),
+        CheckConstraint("ai_mode IN ('AUTO','ASSIST','OFF')", name="ck_conversation_ai_mode"),
+        CheckConstraint("cycle >= 1", name="ck_conversation_cycle"),
+        CheckConstraint("handoff_reason IS NULL OR handoff_reason IN ('HUMAN_REQUESTED','PURCHASE_INTENT','PAYMENT','ORDER_SUPPORT','COMPLAINT','RETURN_EXCHANGE','NEGOTIATION','LOW_CONFIDENCE','AI_FAILURE','DELIVERY_ISSUE')", name="ck_conversation_handoff"),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     customer_id: Mapped[str] = mapped_column(ForeignKey("customers.id", ondelete="CASCADE"), index=True)
     identity_id: Mapped[str] = mapped_column(ForeignKey("channel_identities.id", ondelete="CASCADE"), unique=True)
     channel: Mapped[str] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(20), default=ConversationStatus.AI.value)
+    ai_mode: Mapped[str] = mapped_column(String(10), default="OFF", server_default="OFF")
+    cycle: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    handoff_reason: Mapped[str | None] = mapped_column(String(30), nullable=True)
     context: Mapped[dict] = mapped_column(JSON, default=dict)
     failure_count: Mapped[int] = mapped_column(Integer, default=0)
     version: Mapped[int] = mapped_column(Integer, default=0)

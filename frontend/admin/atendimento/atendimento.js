@@ -1,16 +1,17 @@
-import { get, post } from "../api.js";
+import { get, post, patch } from "../api.js";
 import { escapeHtml } from "../../js/utils/dom.js";
 
-export const STATUS_LABELS = { WAITING_HUMAN: "Aguardando", HUMAN: "Em atendimento", CLOSED: "Encerrada", AI: "Aguardando" };
-const DELIVERY_LABELS = { sending: "Enviando…", sent: "Aceita pelo WhatsApp", failed: "Falha no envio", uncertain: "Envio sem confirmação — confira antes de reenviar", cancelled: "Não enviada" };
+export const STATUS_LABELS = { WAITING_HUMAN: "Aguardando", HUMAN: "Em atendimento", CLOSED: "Encerrada", AI: "IA atendendo" };
+const DELIVERY_LABELS = { pending: "Na fila", sending: "Enviando…", sent: "Aceita pelo WhatsApp", failed: "Falha no envio", uncertain: "Envio sem confirmação — confira antes de reenviar", cancelled: "Não enviada" };
 const date = (value) => new Date(value).toLocaleString("pt-BR");
 const escape = (value) => escapeHtml(String(value ?? ""));
 
-export function mountInbox(root, { api = { get, post }, interval = 5000 } = {}) {
+export function mountInbox(root, { api = { get, post, patch }, interval = 5000 } = {}) {
+    let suggestion = "", generating = false, aiContext = "";
     let active = true, selected = null, busy = false, refreshing = false, revision = 0, timer;
     let messages = new Map(), hasOlder = false, offset = 0, more = false;
     const drafts = new Map(), retries = new Map();
-    root.innerHTML = `<h1>WhatsApp</h1><p>Atendimento humano · atualização automática</p>
+    root.innerHTML = `<h1>WhatsApp</h1><p>Atendimento · IA e equipe Dark District</p>
         <p class="inbox-notice" role="status"></p>
         <div class="inbox"><aside class="inbox-sidebar" aria-label="Conversas">
         <label>Filtrar <select data-filter><option value="">Todas</option><option value="WAITING_HUMAN">Aguardando</option><option value="HUMAN">Em atendimento</option><option value="CLOSED">Encerradas</option></select></label>
@@ -18,7 +19,11 @@ export function mountInbox(root, { api = { get, post }, interval = 5000 } = {}) 
         <section class="inbox-thread" aria-label="Histórico da conversa"><p data-empty>Selecione uma conversa.</p>
         <div data-conversation hidden><header class="inbox-toolbar"><button data-back>Voltar</button><strong data-phone></strong><span data-status></span><button data-claim>Assumir atendimento</button><button data-close>Encerrar atendimento</button></header>
         <button data-older hidden>Carregar mensagens anteriores</button><div class="inbox-messages" aria-label="Mensagens"></div>
-        <form><label for="inbox-text">Sua resposta</label><textarea id="inbox-text" maxlength="2000" rows="3" required></textarea><button type="submit">Enviar</button></form></div></section></div>`;
+        <form><label for="inbox-text">Sua resposta</label><textarea id="inbox-text" maxlength="2000" rows="3" required></textarea><button type="submit">Enviar</button></form></div></section>
+        <aside class="inbox-ai" hidden><details><summary>Assistente IA</summary><label>Modo IA <select data-ai-mode><option value="OFF">Desligado</option><option value="ASSIST">Copiloto</option><option value="AUTO">Automático</option></select></label>
+        <p data-ai-reason></p><p>O modo Automático só responde no status IA atendendo. A IA não finaliza compras.</p>
+        <button data-ai-resume>Retomar IA</button><p data-ai-notice role="status"></p><button data-ai-generate>Gerar sugestão</button>
+        <button data-ai-suggestion class="inbox-suggestion" aria-label="Copiar sugestão"></button><div class="inbox-ai-actions"><button data-ai-use>Usar resposta</button><button data-ai-send>Enviar agora</button></div></details></aside></div>`;
     const q = (selector) => root.querySelector(selector);
     const textarea = q("textarea");
     const notify = (text) => { if (active) q(".inbox-notice").textContent = text; };
@@ -26,6 +31,16 @@ export function mountInbox(root, { api = { get, post }, interval = 5000 } = {}) 
     function controls() {
         if (!active || !selected) return;
         q("[data-status]").textContent = STATUS_LABELS[selected.status] || selected.status;
+        q(".inbox-ai").hidden = false;
+        q("[data-ai-mode]").value = selected.ai_mode || "OFF";
+        q("[data-ai-mode]").disabled = busy;
+        q("[data-ai-reason]").textContent = selected.handoff_reason ? `Motivo: ${selected.handoff_reason}` : "";
+        q("[data-ai-resume]").disabled = busy || selected.ai_mode !== "AUTO" || selected.status === "AI" || selected.status === "CLOSED";
+        q("[data-ai-generate]").disabled = busy || generating || !selected.ai_mode || selected.ai_mode === "OFF" || selected.status === "CLOSED";
+        q("[data-ai-generate]").textContent = generating ? "Consultando…" : suggestion ? "Gerar novamente" : "Gerar sugestão";
+        ["[data-ai-use]", "[data-ai-send]", "[data-ai-suggestion]"].forEach((selector) => {
+            q(selector).disabled = busy || !suggestion || selected.status !== "HUMAN";
+        });
         q("[data-claim]").disabled = busy || selected.status === "HUMAN";
         q("[data-close]").disabled = busy || selected.status === "CLOSED";
         textarea.disabled = busy || selected.status !== "HUMAN";
@@ -62,6 +77,11 @@ export function mountInbox(root, { api = { get, post }, interval = 5000 } = {}) 
         const result = await api.get(`${conversationPath}/messages?limit=50${older && first ? `&before=${first.id}` : ""}`);
         if (!active || current !== revision) return;
         selected.status = result.status;
+        selected.ai_mode = result.ai_mode || selected.ai_mode || "OFF";
+        selected.handoff_reason = result.handoff_reason;
+        const latestMessage = result.messages.at(-1)?.id;
+        const context = `${selected.conversation_id}:${result.cycle}:${selected.status}:${selected.ai_mode}:${latestMessage}`;
+        if (!older && context !== aiContext) { suggestion = ""; aiContext = context; q("[data-ai-suggestion]").textContent = ""; }
         if (older || messages.size <= 50) hasOlder = result.has_more;
         result.messages.forEach((message) => messages.set(message.id, message));
         showMessages();
@@ -71,6 +91,8 @@ export function mountInbox(root, { api = { get, post }, interval = 5000 } = {}) 
         if (selected) drafts.set(selected.conversation_id, textarea.value);
         revision++;
         selected = item; messages = new Map(); hasOlder = false;
+        suggestion = ""; aiContext = ""; q("[data-ai-suggestion]").textContent = "";
+        q(".inbox-ai details").open = window.innerWidth > 720;
         textarea.value = drafts.get(item.conversation_id) || "";
         q("[data-phone]").textContent = item.phone;
         q("[data-empty]").hidden = true; q("[data-conversation]").hidden = false;
@@ -127,6 +149,41 @@ export function mountInbox(root, { api = { get, post }, interval = 5000 } = {}) 
         } finally { busy = false; controls(); if (active) refresh(); }
     });
     textarea.addEventListener("input", controls);
+    q("[data-ai-generate]").addEventListener("click", async () => {
+        if (generating || busy || !selected) return;
+        const context = aiContext, conversationId = selected.conversation_id;
+        generating = true; controls(); q("[data-ai-notice]").textContent = "";
+        try {
+            const result = await api.post(`${path()}/ai-suggestion`, { force: Boolean(suggestion) });
+            if (!active || conversationId !== selected?.conversation_id || context !== aiContext) return;
+            suggestion = result.message; q("[data-ai-suggestion]").textContent = suggestion;
+        } catch (error) { if (active) q("[data-ai-notice]").textContent = error.message; }
+        finally { generating = false; controls(); }
+    });
+    function useSuggestion() {
+        if (!suggestion || busy || selected?.status !== "HUMAN") return false;
+        textarea.value = suggestion; textarea.focus(); controls(); return true;
+    }
+    q("[data-ai-use]").addEventListener("click", useSuggestion);
+    q("[data-ai-suggestion]").addEventListener("click", useSuggestion);
+    q("[data-ai-send]").addEventListener("click", () => {
+        if (useSuggestion()) q("form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+    });
+    async function updateAI(resume = false) {
+        if (busy || !selected) return;
+        busy = true; revision++;
+        const mode = q("[data-ai-mode]").value;
+        controls();
+        try {
+            const result = await api.patch(path() + (resume ? "" : "/ai-mode"), resume ? { status: "AI" } : { ai_mode: mode });
+            if (!active) return;
+            selected.status = result.status; if (result.ai_mode) selected.ai_mode = result.ai_mode;
+            await loadMessages();
+        } catch (error) { notify(error.message); }
+        finally { busy = false; controls(); }
+    }
+    q("[data-ai-mode]").addEventListener("change", () => updateAI());
+    q("[data-ai-resume]").addEventListener("click", () => updateAI(true));
     q("[data-claim]").addEventListener("click", () => changeStatus("claim"));
     q("[data-close]").addEventListener("click", () => changeStatus("close"));
     q("[data-back]").addEventListener("click", () => q(".inbox").classList.remove("has-selection"));

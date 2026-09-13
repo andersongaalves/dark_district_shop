@@ -70,7 +70,7 @@ def _ownership(job):
             DeliveryJob.locked_at == job.locked_at)
 
 
-def ready_jobs_query(now):
+def ready_jobs_query(now, prefix=None):
     """Only the oldest unfinished job for each identity may acquire a lease.
 
     A retry scheduled in the future still blocks later messages for that person;
@@ -83,13 +83,14 @@ def ready_jobs_query(now):
         or_(earlier.created_at < DeliveryJob.created_at,
             and_(earlier.created_at == DeliveryJob.created_at, earlier.id < DeliveryJob.id)),
     ))
-    return select(DeliveryJob).where(
+    query = select(DeliveryJob).where(
         DeliveryJob.status == "pending", DeliveryJob.available_at <= now,
         DeliveryJob.channel == "whatsapp", ~preceding_job,
     ).order_by(DeliveryJob.created_at, DeliveryJob.id).with_for_update(skip_locked=True).limit(1)
+    return query.where(DeliveryJob.external_id.startswith(prefix)) if prefix else query
 
 
-def claim_next(session_factory=SessionLocal) -> ClaimedJob | None:
+def claim_next(session_factory=SessionLocal, *, prefix=None) -> ClaimedJob | None:
     now = utcnow()
     stale = now - timedelta(seconds=settings.DELIVERY_LEASE_SECONDS)
     with session_factory() as db:
@@ -107,7 +108,7 @@ def claim_next(session_factory=SessionLocal) -> ClaimedJob | None:
             DeliveryJob.status == "processing", DeliveryJob.locked_at < stale,
             DeliveryJob.kind == "inbound", DeliveryJob.attempts >= settings.DELIVERY_MAX_ATTEMPTS,
         ).values(status="failed", error_code="attempts_exhausted", locked_at=None, updated_at=now))
-        candidate = db.scalar(ready_jobs_query(now))
+        candidate = db.scalar(ready_jobs_query(now, prefix))
         if candidate is None:
             db.commit()
             return None

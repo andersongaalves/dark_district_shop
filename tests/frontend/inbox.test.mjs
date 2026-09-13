@@ -3,6 +3,40 @@ import { test } from "node:test";
 import { installDOM, eventually } from "./helpers/dom.mjs";
 import { mountInbox } from "../../frontend/admin/atendimento/atendimento.js";
 
+test("AI suggestion copy and send reuse the human message endpoint", async (t) => {
+    await installDOM(t, '<div id="inbox"></div>');
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+    let mode = "ASSIST";
+    const calls = [], root = document.querySelector("#inbox");
+    const answer = "Temos M preta no catálogo. 🖤";
+    const view = mountInbox(root, { interval: 100000, api: {
+        async get(url) { return url.includes("/messages") ? { status: "HUMAN", ai_mode: mode, cycle: 1, messages: [], has_more: false } :
+            { items: [{ conversation_id: "c1", phone: "Contato", status: "HUMAN", ai_mode: mode, updated_at: "2026-09-12T10:00:00Z" }], has_more: false }; },
+        async post(url, data) {
+            calls.push({ url, data });
+            if (url.endsWith("/ai-suggestion")) return { message: answer };
+            return { id: "sent", sender: "human", content: data.message, created_at: "2026-09-12T11:00:00Z", delivery_status: "sent" };
+        },
+        async patch(url, data) { mode = data.ai_mode; return { ai_mode: mode, status: "HUMAN" }; }
+    } });
+    t.after(() => view.destroy());
+    await view.ready; root.querySelector("[data-id]").click();
+    await eventually(() => assert.equal(root.querySelector(".inbox-messages").textContent, ""));
+    root.querySelector("[data-ai-generate]").click();
+    await eventually(() => assert.equal(root.querySelector("[data-ai-suggestion]").textContent, answer));
+    assert.equal(calls.length, 1);
+    root.querySelector("[data-ai-suggestion]").click();
+    assert.equal(root.querySelector("textarea").value, answer);
+    root.querySelector("[data-ai-send]").click();
+    await eventually(() => assert.equal(root.querySelector("textarea").value, ""));
+    assert.equal(calls[1].url, "/admin/conversations/c1/messages");
+    assert.equal(calls[1].data.message, answer);
+    const select = root.querySelector("[data-ai-mode]"); select.value = "OFF";
+    select.dispatchEvent(new window.Event("change"));
+    await eventually(() => assert.equal(select.value, "OFF"));
+    assert.equal(root.querySelector("[data-ai-generate]").disabled, true);
+});
+
 test("inbox filters, claims, displays safe history, sends once and closes", async (t) => {
     await installDOM(t, '<div id="inbox"></div>');
     Object.defineProperty(document, "hidden", { value: false, configurable: true });
