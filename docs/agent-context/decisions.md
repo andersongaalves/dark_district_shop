@@ -110,3 +110,36 @@ reserva estoque e não há model de Order/Payment.
 
 Implications: backend continua autoridade de produto, preço, estoque e cotação; qualquer
 futuro pedido/pagamento exige desenho explícito e migration própria.
+
+## Mensagens ambíguas são esclarecidas antes de LOW_CONFIDENCE
+
+Status: Planned
+
+Decision: a IA conversacional V2 poderá fazer até duas perguntas orientadas antes de
+encaminhar por baixa confiança. Handoffs claros continuam imediatos.
+
+Implications: `LOW_CONFIDENCE` passa a significar incompreensão persistente. Falha técnica
+permanece `AI_FAILURE`, e perguntas de descoberta com intenção já conhecida não gastam o
+limite de esclarecimento. Especificação em
+`docs/agent-context/whatsapp-conversation-v2-plan.md`.
+
+## Estado conversacional V2 reutiliza o JSON existente
+
+Status: Planned
+
+Decision: tentativas de esclarecimento, foco de produto, preferências e última decisão
+serão persistidos em um bloco versionado e validado de `Conversation.context`.
+
+Implications: a primeira implementação não requer colunas ou migration. Mensagens e
+DeliveryJobs existentes continuam sendo a fonte de histórico e idempotência; produtos
+são guardados apenas por ID e reconsultados antes de informar fatos.
+
+## Ativação e retomada da IA são eventos distintos
+
+Status: Planned
+
+Decision: ciclos AUTO usarão uma saudação automática própria; ASSIST/OFF usarão a saudação
+humana. Retomar IA produzirá uma mensagem diferente, somente em uma transição explícita.
+
+Implications: saudação e retomada reutilizam Message/DeliveryJob com chaves por ciclo e
+versão, sem coluna `ai_intro_sent` ou tabela de eventos.

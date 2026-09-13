@@ -2,6 +2,10 @@
 
 Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
 
+Planned conversational V2:
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). Essa especificação
+está `PLANNED` e não descreve comportamento atualmente implementado.
+
 ## Seleção do fluxo
 
 `routers/whatsapp.py` preserva um único webhook. Depois de validar configuração, HMAC,
