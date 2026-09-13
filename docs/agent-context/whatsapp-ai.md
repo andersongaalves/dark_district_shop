@@ -1,10 +1,11 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
+Last verified against commit: `8efc9760c45072a6081b5ad94aaa37976e3fcf01`
 
-Planned conversational V2:
-[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). Essa especificação
-está `PLANNED` e não descreve comportamento atualmente implementado.
+Conversational V2:
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). A F2A do contrato
+de decisão está implementada; F2B–F2G permanecem `PLANNED` e não descrevem comportamento
+atualmente implementado.
 
 ## Seleção do fluxo
 
@@ -92,9 +93,26 @@ Compra/reserva envia texto de transição para finalizar com atendente. Os demai
 sensíveis também pausam a IA. Handoff grava `WAITING_HUMAN`, razão, nova versão e uma
 chave de evento; mensagens posteriores não repetem transição ou notificação.
 
-`LOW_CONFIDENCE` cobre respostas de esclarecimento consideradas insuficientes no AUTO.
-Erros de provider/consulta viram `AI_FAILURE`. Resultado vazio e confiável do catálogo é
-respondido como indisponibilidade e não deve sugerir outra peça como se fosse a pedida.
+Ambiguidade simples agora produz `CLARIFY` e mantém a conversa em `AI`; o consumer não
+infere mais `LOW_CONFIDENCE` por prefixo da mensagem. A contagem e o handoff após duas
+tentativas pertencem à F2B e ainda não estão implementados. Erros de provider/consulta ou
+saída inválida viram `AI_FAILURE`. Resultado vazio e confiável do catálogo é respondido
+como indisponibilidade e não deve sugerir outra peça como se fosse a pedida.
+
+## Core de decisão conversacional
+
+`whatsapp_ai_service.WhatsAppDecision` valida quatro ações operacionais:
+
+- `ANSWER`: responde com conteúdo factual do `AgentResponse`;
+- `CLARIFY`: envia uma pergunta de esclarecimento sem fazer handoff;
+- `HANDOFF`: exige um `HandoffReason` válido;
+- `NO_ACTION`: não permite resposta nem handoff.
+
+As regras determinísticas produzem `HANDOFF` antes de chamar o agente. O `AgentResponse`
+usa hints internos e excluídos da resposta HTTP para sinalizar esclarecimento, mantendo o
+contrato do Web Chat. O consumer persiste `conversation_v2.schema_version` e
+`conversation_v2.last_decision` no JSON existente. Contexto antigo ou vazio continua
+válido; F2A ainda não persiste tentativas, foco ou preferências V2.
 
 ## Notificação do atendente
 

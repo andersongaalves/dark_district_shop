@@ -45,6 +45,10 @@ class ChatAction(StrictModel):
 class AgentResponse(StrictModel):
     message: str = Field(max_length=6000)
     type: Literal["message", "product_results", "handoff", "error", "silent"] = "message"
+    decision_hint: Literal["ANSWER", "CLARIFY"] = Field(default="ANSWER", exclude=True)
+    decision_reason_code: str | None = Field(
+        default=None, max_length=80, pattern=r"^[A-Z][A-Z0-9_]*$", exclude=True
+    )
     products: list[ChatProduct] = Field(default_factory=list, max_length=10)
     actions: list[ChatAction] = Field(default_factory=list, max_length=3)
     handoff: bool = False

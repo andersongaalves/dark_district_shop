@@ -1,29 +1,31 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: PLANNED
+Status: IN PROGRESS — F2A IMPLEMENTED; F2B–F2G PLANNED
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
-Este documento especifica uma evolução futura. Nada descrito como V2 está ativo até a
-fase de implementação, testes e publicação correspondente. O comportamento implementado
+F2A implementation based on commit: `8efc9760c45072a6081b5ad94aaa37976e3fcf01`
+
+Este documento especifica a evolução incremental. Somente a F2A marcada como
+`IMPLEMENTED` está ativa; as demais seções continuam sendo desenho futuro até a fase de
+implementação, testes e publicação correspondente. O comportamento atual consolidado
 continua documentado em [whatsapp-ai.md](whatsapp-ai.md).
 
-## 1. Problema atual
+## 1. Problema original
 
-O adaptador AUTO trata algumas respostas genéricas do agente como baixa confiança por
-comparação de prefixos do texto. Uma pergunta ambígua como “Como funcionam os processos?”
-produz o esclarecimento genérico do agente, mas o consumer converte esse texto em
-`LOW_CONFIDENCE` e faz handoff imediato.
+Antes da F2A, o adaptador AUTO tratava algumas respostas genéricas do agente como baixa
+confiança por comparação de prefixos do texto. Uma pergunta ambígua como “Como funcionam
+os processos?” produzia o esclarecimento genérico do agente, mas o consumer convertia esse
+texto em `LOW_CONFIDENCE` e fazia handoff imediato.
 
 Essa política confunde duas situações:
 
 - ambiguidade conversável, que admite uma pergunta curta e resposta multi-turn;
 - incapacidade persistente, depois de tentativas orientadas, que exige humano.
 
-O agente já recebe histórico limitado e mantém `filters`/`product_ids`, mas o contrato
-entre resposta textual e decisão operacional não expressa `CLARIFY`. Também não existe
-estado estruturado para contar esclarecimentos, preservar referências ordinais ou mostrar
-a última decisão na inbox.
+O agente já recebia histórico limitado e mantinha `filters`/`product_ids`. A F2A passou a
+expressar `CLARIFY` e a última decisão de forma estruturada. Contagem de esclarecimentos e
+referências ordinais continuam planejadas para as fases seguintes.
 
 ## 2. Objetivos
 
@@ -509,14 +511,18 @@ Não expor nome do provider, stack trace, prompt ou argumentos em mensagens/logs
 
 ### F2A — Contrato de decisão
 
-Arquivos prováveis: `backend/schemas/atendimento.py`, `backend/services/ai_agent.py`,
-`backend/services/whatsapp_ai_service.py`.
+Status: IMPLEMENTED
 
-Responsabilidade: criar decisão/códigos estruturados, remover controle por prefixo e
-separar falha técnica de baixa confiança. Risco: regressão no Web Chat compartilhado.
-Testes: unitários do agente/adaptador e regressão completa do Web Chat.
+Arquivos: `backend/schemas/atendimento.py`, `backend/services/ai_agent.py`,
+`backend/services/whatsapp_ai_service.py` e `backend/services/whatsapp_hybrid_service.py`.
+
+Resultado: decisão/códigos estruturados, remoção do controle por prefixo e separação de
+falha técnica e ambiguidade. O Web Chat preserva seu contrato público porque os hints do
+agente são internos e excluídos da serialização.
 
 ### F2B — Clarification e contexto
+
+Status: PLANNED
 
 Arquivos prováveis: `whatsapp_ai_service.py`, `whatsapp_hybrid_service.py` e, se
 necessário, `agent_language.py`.
@@ -527,6 +533,8 @@ Testes: unit, multi-turn, limites, cycle/reset e idempotência.
 
 ### F2C — Descoberta e referências de produto
 
+Status: PLANNED
+
 Arquivos prováveis: `ai_agent.py`, `whatsapp_ai_service.py`, `tools/catalog_tools.py`
 somente se faltar filtro de leitura.
 
@@ -534,6 +542,8 @@ Responsabilidade: preferências, ordem/foco, slots e reconsulta. Risco: referên
 ou informação de catálogo vencida. Testes: jornadas multi-turn e revalidação.
 
 ### F2D — Saudação por modo e retomada
+
+Status: PLANNED
 
 Arquivos prováveis: `whatsapp_hybrid_service.py`, `conversation_service.py`,
 `whatsapp_ai_service.py` e constantes de texto do fluxo WhatsApp.
@@ -544,6 +554,8 @@ integração, races, restart, CLOSED e clique duplicado.
 
 ### F2E — Observabilidade e contrato da inbox
 
+Status: PLANNED
+
 Arquivos prováveis: `whatsapp_inbox_service.py`, `routers/atendimento_admin.py` e schemas
 administrativos existentes.
 
@@ -552,6 +564,8 @@ exposição de texto/PII ou consultas N+1. Testes: auth, no-store, serializaçã
 
 ### F2F — Interface administrativa
 
+Status: PLANNED
+
 Arquivos prováveis: `frontend/admin/atendimento/atendimento.js`, `.css` e
 `tests/frontend/inbox.test.mjs`.
 
@@ -559,6 +573,8 @@ Responsabilidade: exibir decisão/tentativas/timeline e UX idempotente de retoma
 estado de polling atrasado e regressão mobile. Testes: frontend + visual desktop/mobile.
 
 ### F2G — Integração, documentação e rollout
+
+Status: PLANNED
 
 Arquivos: suítes WhatsApp/AI/Web Chat, `.env.example` somente se surgir configuração,
 `whatsapp-ai.md`, deploy e este plano.

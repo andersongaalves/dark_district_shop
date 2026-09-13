@@ -64,10 +64,14 @@ def _handoff() -> AgentResponse:
                          message="Registrei sua solicitação de atendimento humano para a equipe da DD. O atendimento automático fica pausado enquanto você aguarda.")
 
 
-def _clarify() -> AgentResponse:
+def _clarify(message=None, reason_code="AMBIGUOUS_MESSAGE") -> AgentResponse:
     return AgentResponse(
-        message="Não entendi bem essa mensagem. Posso ajudar com peças, tamanhos, cores, preços, ofertas, compra, entrega e devolução. "
-                "Você pode escrever, por exemplo: ‘tem camiseta preta M?’ ou ‘como comprar?’. O que você gostaria de saber?",
+        decision_hint="CLARIFY",
+        decision_reason_code=reason_code,
+        message=message or (
+            "Não entendi bem essa mensagem. Posso ajudar com peças, tamanhos, cores, preços, ofertas, compra, entrega e devolução. "
+            "Você pode escrever, por exemplo: ‘tem camiseta preta M?’ ou ‘como comprar?’. O que você gostaria de saber?"
+        ),
         actions=[ChatAction(type="human_handoff", label="Falar com a equipe"), *_menu()[:2]],
     )
 
@@ -82,6 +86,12 @@ def _rules(text):
         return _handoff()
     if re.fullmatch(r"[\s!?,.]*(?:(oi|ola|bom dia|boa tarde|boa noite|e ai)[\s!?,.]*)?(tudo bem|como vai|como voce esta)?[\s!?,.]*", text):
         return AgentResponse(message="Oi! Sou a IA da DD e estou por aqui para ajudar. Quer encontrar uma peça ou tirar uma dúvida sobre a loja?", actions=_menu())
+    if re.search(r"\bcomo funcionam?(?: os)? processos?\b", text):
+        return _clarify(
+            "Claro 🖤 Qual processo você quer conhecer melhor? Posso explicar compra, entrega, "
+            "troca/devolução, atendimento ou como funciona o catálogo da Dark District.",
+            reason_code="AMBIGUOUS_PROCESS",
+        )
     if re.search(r"\b(tokens?|secrets?|senhas?|api key|clientes cadastrados|banco inteiro|execute sql|execute codigo)\b", text):
         return AgentResponse(message="Posso consultar as informações públicas do catálogo e do FAQ. Não tenho acesso a dados privados ou funções administrativas.")
     faqs = match_faq(text)

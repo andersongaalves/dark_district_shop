@@ -50,6 +50,32 @@ def test_auto_uses_real_catalog_without_mutating_stock(client, db, flow):
     assert not flow.notified
 
 
+def test_ambiguous_process_clarifies_once_without_handoff(db, flow):
+    item = flow.receive("Como funcionam os processos?")
+    flow.receive(item.text, item.message_id)
+    flow.drain()
+
+    conversation = db.query(Conversation).one()
+    assert conversation.status == "AI"
+    assert conversation.handoff_reason is None
+    assert conversation.context["conversation_v2"]["last_decision"]["action"] == "CLARIFY"
+    assert len(flow.notified) == 0
+    assert len(flow.sent) == 2
+    assert "Qual processo você quer conhecer melhor?" in flow.sent[-1][1]
+
+
+def test_invalid_structured_agent_response_uses_ai_failure(db, flow, monkeypatch):
+    monkeypatch.setattr(ai.ai_agent, "respond", lambda *_: {"message": "Compra concluída", "type": "purchase"})
+    flow.receive("Mensagem não classificada")
+    flow.drain()
+
+    conversation = db.query(Conversation).one()
+    assert conversation.status == "WAITING_HUMAN"
+    assert conversation.handoff_reason == "AI_FAILURE"
+    assert all("Compra concluída" not in text for _, text in flow.sent)
+    assert len(flow.notified) == 1
+
+
 @pytest.mark.parametrize("text,reason", [
     ("Quero comprar essa M", "PURCHASE_INTENT"), ("Vou levar", "PURCHASE_INTENT"),
     ("Quero essa", "PURCHASE_INTENT"), ("Separa uma M pra mim", "PURCHASE_INTENT"),

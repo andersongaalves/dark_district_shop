@@ -91,9 +91,10 @@ def receive_messages(db, incoming_messages):
             if c.ai_mode != "AUTO":
                 handoff(db, c, "HUMAN_REQUESTED", source, transition=False)
         if c.status == "AI" and c.ai_mode == "AUTO":
-            reason = ai.reason_for(source.content)
-            if reason:
-                handoff(db, c, reason, source)
+            decision = ai.hard_handoff_decision(source.content)
+            if decision:
+                c.context = ai.context_after_decision(c.context, decision, source.id)
+                handoff(db, c, decision.handoff_reason.value, source)
             else:
                 queue(db, c, f"auto:{c.id}:{source.id}", "auto", {"source_id": source.id}, kind="inbound")
         db.commit()
@@ -103,7 +104,8 @@ def process_auto(job, sessions):
     with sessions() as db:
         c = db.get(Conversation, job.conversation_id)
         source = db.get(Message, job.payload["source_id"])
-        if not c or not source or c.status != "AI" or c.ai_mode != "AUTO" or c.cycle != job.payload["cycle"]:
+        blocked = ai.auto_state_decision(c) if c else ai.no_action("CONVERSATION_NOT_FOUND")
+        if not c or not source or blocked or c.cycle != job.payload["cycle"]:
             delivery._finish(job, "cancelled", session_factory=sessions)
             return
         latest = db.scalar(select(Message.id).where(Message.conversation_id == c.id, Message.sender == "customer")
@@ -114,17 +116,7 @@ def process_auto(job, sessions):
         version, conversation_id = c.version, c.id
         incoming = ai.agent_input(db, c, source)
         db.rollback()
-        reason = None
-        try:
-            result = ai.ai_agent.respond(db, incoming)
-            if result.type == "error":
-                reason = "AI_FAILURE"
-            elif result.handoff:
-                reason = "HUMAN_REQUESTED"
-            elif result.message.startswith(("Não entendi bem", "Essa informação precisa", "Não consegui")):
-                reason = "LOW_CONFIDENCE"
-        except Exception:
-            reason = "AI_FAILURE"
+        decision = ai.decide(db, incoming)
         db.rollback()
         c = db.scalar(select(Conversation).where(Conversation.id == conversation_id).with_for_update().execution_options(populate_existing=True))
         owned = db.scalar(select(DeliveryJob.id).where(*delivery._ownership(job)))
@@ -133,14 +125,17 @@ def process_auto(job, sessions):
         valid = c and c.version == version and c.status == "AI" and c.ai_mode == "AUTO"
         if valid:
             source = db.get(Message, job.payload["source_id"])
-            if reason:
-                handoff(db, c, reason, source)
-            else:
-                c.context = result.context
+            if decision.action == ai.DecisionAction.HANDOFF:
+                c.context = ai.context_after_decision(c.context, decision, source.id)
+                handoff(db, c, decision.handoff_reason.value, source)
+            elif decision.action in {ai.DecisionAction.ANSWER, ai.DecisionAction.CLARIFY}:
+                result = decision.response
+                c.context = ai.context_after_decision(c.context, decision, source.id)
                 from channels.whatsapp_channel import render_text
                 outbound(db, c, f"reply:{source.id}", render_text(result), "auto",
                          source.extra_data["received_timestamp"], [p.model_dump(mode="json") for p in result.products])
-        db.execute(update(DeliveryJob).where(*delivery._ownership(job)).values(status="sent" if valid else "cancelled", locked_at=None))
+        completed = valid and decision.action != ai.DecisionAction.NO_ACTION
+        db.execute(update(DeliveryJob).where(*delivery._ownership(job)).values(status="sent" if completed else "cancelled", locked_at=None))
         db.commit()
 
 
