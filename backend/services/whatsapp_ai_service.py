@@ -4,7 +4,7 @@ import logging
 import re
 from datetime import timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from sqlalchemy import select, update, or_
@@ -18,6 +18,20 @@ from services.customer_service import SupportError
 logger = logging.getLogger(__name__)
 PURCHASE_TEXT = "Perfeito 🖤 Vou encaminhar você para um atendente da Dark District para finalizar sua compra. Em breve ele continua por aqui."
 HANDOFF_TEXT = "Vou encaminhar sua solicitação para um atendente da Dark District. O atendimento automático fica pausado enquanto você aguarda."
+MAX_CLARIFICATION_ATTEMPTS = 2
+
+PROCESS_TOPIC_OPTIONS = ["compra", "entrega", "troca_devolucao", "atendimento", "catalogo"]
+PROCESS_TOPIC_PROMPTS = {
+    1: "Claro 🖤 Qual processo você quer conhecer melhor? Posso explicar compra, entrega, "
+       "troca/devolução, atendimento ou como funciona o catálogo da Dark District.",
+    2: "Sem problema 🖤 Você quer saber o que acontece antes de comprar, como recebe o pedido, "
+       "como funciona troca/devolução, o atendimento ou o catálogo?",
+}
+GENERAL_CLARIFICATION_PROMPT = (
+    "Sem problema 🖤 Você procura uma peça ou quer saber sobre compra, entrega, "
+    "troca/devolução, atendimento ou catálogo?"
+)
+ClarificationOption = Literal["compra", "entrega", "troca_devolucao", "atendimento", "catalogo"]
 
 
 class DecisionAction(str, Enum):
@@ -25,6 +39,17 @@ class DecisionAction(str, Enum):
     CLARIFY = "CLARIFY"
     HANDOFF = "HANDOFF"
     NO_ACTION = "NO_ACTION"
+
+
+class ClarificationState(BaseModel):
+    """Small persisted state for the active clarification cycle."""
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    attempts: int = Field(ge=1, le=MAX_CLARIFICATION_ATTEMPTS)
+    kind: Literal["PROCESS_TOPIC", "GENERAL"]
+    options: list[ClarificationOption] = Field(default_factory=list, max_length=5)
+    source_message_id: str | None = Field(default=None, min_length=1, max_length=80)
 
 
 class WhatsAppDecision(BaseModel):
@@ -39,6 +64,8 @@ class WhatsAppDecision(BaseModel):
     context_patch: dict[str, Any] = Field(default_factory=dict)
     failure_kind: str | None = Field(default=None, min_length=1, max_length=80, pattern=r"^[A-Z][A-Z0-9_]*$")
     retryable: bool = False
+    clarification: ClarificationState | None = None
+    clear_clarification: bool = False
 
     @model_validator(mode="after")
     def validate_action_contract(self):
@@ -48,6 +75,10 @@ class WhatsAppDecision(BaseModel):
             raise ValueError("HANDOFF exige handoff_reason.")
         if self.action == DecisionAction.NO_ACTION and (self.response is not None or self.handoff_reason is not None):
             raise ValueError("NO_ACTION não pode produzir resposta ou handoff.")
+        if self.action == DecisionAction.NO_ACTION and (self.clarification is not None or self.clear_clarification):
+            raise ValueError("NO_ACTION não pode alterar clarification.")
+        if self.clarification is not None and self.clear_clarification:
+            raise ValueError("Uma decisão não pode definir e limpar clarification ao mesmo tempo.")
         return self
 
 
@@ -64,6 +95,31 @@ def auto_state_decision(conversation):
     return None
 
 
+def clarification_from_context(context):
+    if not isinstance(context, dict):
+        return None
+    v2 = context.get("conversation_v2")
+    raw = v2.get("clarification") if isinstance(v2, dict) else None
+    try:
+        return ClarificationState.model_validate(raw) if raw is not None else None
+    except ValidationError:
+        return None
+
+
+def clear_clarification_context(current):
+    """Remove only active clarification state, without disturbing other context."""
+    if not isinstance(current, dict):
+        return {}
+    context = dict(current)
+    existing_v2 = context.get("conversation_v2")
+    if not isinstance(existing_v2, dict) or "clarification" not in existing_v2:
+        return context
+    v2 = dict(existing_v2)
+    v2.pop("clarification", None)
+    context["conversation_v2"] = v2
+    return context
+
+
 def change_mode(db, conversation_id, mode):
     from services.whatsapp_inbox_service import require_conversation
     from services.whatsapp_hybrid_service import handoff
@@ -73,6 +129,8 @@ def change_mode(db, conversation_id, mode):
     c.ai_mode = mode
     c.version += 1
     c.context = {k: v for k, v in (c.context or {}).items() if k != "suggestion_cache"}
+    if mode != "AUTO":
+        c.context = clear_clarification_context(c.context)
     if c.status == "AI" and mode != "AUTO":
         source = db.scalar(select(Message).where(Message.conversation_id == c.id, Message.sender == "customer")
                            .order_by(Message.created_at.desc()).limit(1))
@@ -86,8 +144,12 @@ def change_mode(db, conversation_id, mode):
     return {"ai_mode": c.ai_mode, "status": c.status}
 
 
-def _hard_handoff_reason(text):
+def _hard_handoff_reason(text, context=None):
     text = normalize(text)
+    pending = clarification_from_context(context)
+    process_topic_selection = bool(
+        pending and _process_topic_message(text)
+    )
     patterns = [
         ("HUMAN_REQUESTED", r"humano|atendente|pessoa real|falar com (?:uma )?pessoa|tem alguem|pessoa de verdade"),
         ("PAYMENT", r"\bpix\b|pagamento|pagar|chave|cobranca|cartao|boleto"),
@@ -98,18 +160,21 @@ def _hard_handoff_reason(text):
         ("ORDER_SUPPORT", r"\bpedido\b|cancel"),
         ("NEGOTIATION", r"desconto|negoci|mais barato|faz por"),
     ]
-    return next((HandoffReason(reason) for reason, pattern in patterns if re.search(pattern, text)), None)
+    return next((HandoffReason(reason) for reason, pattern in patterns
+                 if not (process_topic_selection and reason == "RETURN_EXCHANGE")
+                 and re.search(pattern, text)), None)
 
 
-def hard_handoff_decision(text):
+def hard_handoff_decision(text, context=None):
     """Apply critical deterministic rules before any LLM or catalog planning."""
-    reason = _hard_handoff_reason(text)
+    reason = _hard_handoff_reason(text, context)
     if reason is None:
         return None
     return WhatsAppDecision(
         action=DecisionAction.HANDOFF,
         handoff_reason=reason,
         reason_code=reason.value,
+        clear_clarification=clarification_from_context(context) is not None,
     )
 
 
@@ -168,21 +233,82 @@ def decision_from_agent_response(raw_response):
     )
 
 
+def _process_topic_message(text):
+    text = normalize(text).strip(" .,!?:;")
+    topics = [
+        (r"(?:sobre )?compras?", "Como funciona a compra?"),
+        (r"(?:sobre )?entregas?", "Como é feita a entrega?"),
+        (r"(?:sobre )?(?:troca|trocas|devolucao|devolucoes|troca e devolucao)",
+         "Como funciona a troca ou devolução?"),
+        (r"(?:sobre )?atendimento", "Como funciona o chat?"),
+        (r"(?:sobre )?(?:catalogo|pecas|produtos)", "Como funciona o catálogo?"),
+    ]
+    return next((message for pattern, message in topics if re.fullmatch(pattern, text)), None)
+
+
+def _clarification_kind(decision, pending):
+    if pending:
+        return pending.kind
+    return "PROCESS_TOPIC" if decision.reason_code == "AMBIGUOUS_PROCESS" else "GENERAL"
+
+
+def _clarification_prompt(kind, attempts, response):
+    if kind == "PROCESS_TOPIC":
+        return PROCESS_TOPIC_PROMPTS[attempts]
+    return response.message if attempts == 1 else GENERAL_CLARIFICATION_PROMPT
+
+
+def _advance_clarification(decision, pending):
+    if decision.action == DecisionAction.NO_ACTION:
+        return decision
+    if decision.action == DecisionAction.CLARIFY:
+        attempts = (pending.attempts if pending else 0) + 1
+        if attempts > MAX_CLARIFICATION_ATTEMPTS:
+            return WhatsAppDecision(
+                action=DecisionAction.HANDOFF,
+                handoff_reason=HandoffReason.LOW_CONFIDENCE,
+                reason_code="CLARIFICATION_EXHAUSTED",
+                clarification=pending,
+            )
+        kind = _clarification_kind(decision, pending)
+        response = decision.response.model_copy(update={
+            "message": _clarification_prompt(kind, attempts, decision.response),
+        })
+        return decision.model_copy(update={
+            "response": response,
+            "clarification": ClarificationState(
+                attempts=attempts,
+                kind=kind,
+                options=list(PROCESS_TOPIC_OPTIONS),
+            ),
+        })
+    if pending:
+        return decision.model_copy(update={"clear_clarification": True})
+    return decision
+
+
 def decide(db, incoming):
     """Resolve one WhatsApp turn into a validated operational decision."""
-    hard_handoff = hard_handoff_decision(incoming.message)
+    pending = clarification_from_context(incoming.context)
+    hard_handoff = hard_handoff_decision(incoming.message, incoming.context)
     if hard_handoff:
         return hard_handoff
+    effective_incoming = incoming
+    if pending:
+        resolved_message = _process_topic_message(incoming.message)
+        if resolved_message:
+            effective_incoming = incoming.model_copy(update={"message": resolved_message})
     try:
-        return decision_from_agent_response(ai_agent.respond(db, incoming))
+        decision = decision_from_agent_response(ai_agent.respond(db, effective_incoming))
     except Exception:
         logger.warning("whatsapp_ai_decision_failed conversation_id=%s", incoming.conversation_id)
-        return WhatsAppDecision(
+        decision = WhatsAppDecision(
             action=DecisionAction.HANDOFF,
             handoff_reason=HandoffReason.AI_FAILURE,
             reason_code="AGENT_EXCEPTION",
             failure_kind="AGENT_EXCEPTION",
         )
+    return _advance_clarification(decision, pending)
 
 
 def context_after_decision(current, decision, source_message_id):
@@ -195,6 +321,13 @@ def context_after_decision(current, decision, source_message_id):
     existing_v2 = context.get("conversation_v2")
     v2 = dict(existing_v2) if isinstance(existing_v2, dict) else {}
     v2["schema_version"] = 1
+    if decision.clear_clarification:
+        v2.pop("clarification", None)
+    elif decision.clarification:
+        clarification = decision.clarification.model_dump(mode="json")
+        if decision.action == DecisionAction.CLARIFY or not clarification.get("source_message_id"):
+            clarification["source_message_id"] = str(source_message_id)[:80]
+        v2["clarification"] = clarification
     v2["last_decision"] = {
         "action": decision.action.value,
         "reason_code": decision.reason_code,

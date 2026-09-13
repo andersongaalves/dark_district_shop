@@ -1,14 +1,16 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: IN PROGRESS — F2A IMPLEMENTED; F2B–F2G PLANNED
+Status: IN PROGRESS — F2A–F2B IMPLEMENTED; F2C–F2G PLANNED
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
 F2A implementation based on commit: `8efc9760c45072a6081b5ad94aaa37976e3fcf01`
 
-Este documento especifica a evolução incremental. Somente a F2A marcada como
-`IMPLEMENTED` está ativa; as demais seções continuam sendo desenho futuro até a fase de
-implementação, testes e publicação correspondente. O comportamento atual consolidado
+F2B implementation based on commit: `8d1c95cf586b53b2c92e8b303e6866d75de94000`
+
+Este documento especifica a evolução incremental. Somente F2A e F2B marcadas como
+`IMPLEMENTED` estão ativas; as demais seções continuam sendo desenho futuro até a fase
+de implementação, testes e publicação correspondente. O comportamento atual consolidado
 continua documentado em [whatsapp-ai.md](whatsapp-ai.md).
 
 ## 1. Problema original
@@ -522,14 +524,16 @@ agente são internos e excluídos da serialização.
 
 ### F2B — Clarification e contexto
 
-Status: PLANNED
+Status: IMPLEMENTED
 
-Arquivos prováveis: `whatsapp_ai_service.py`, `whatsapp_hybrid_service.py` e, se
-necessário, `agent_language.py`.
+Arquivos: `backend/services/whatsapp_ai_service.py`,
+`backend/services/whatsapp_hybrid_service.py` e
+`backend/services/conversation_service.py`.
 
-Responsabilidade: schema V2 no JSON, contador, pending clarification, merge/reset e
-resolução contextual. Risco: contexto obsoleto ou contador duplo sob concorrência.
-Testes: unit, multi-turn, limites, cycle/reset e idempotência.
+Resultado: schema validado e lazy no JSON, limite de duas perguntas, segunda pergunta
+mais orientada, resolução de tópicos curtos, `LOW_CONFIDENCE` após esgotamento e resets em
+resolução, hard handoff, claim, close, retomada, mudança de modo e novo ciclo. O incremento
+é persistido com a resposta/outbox após revalidação de ownership, versão, modo e status.
 
 ### F2C — Descoberta e referências de produto
 

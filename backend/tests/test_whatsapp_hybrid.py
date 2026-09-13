@@ -59,9 +59,173 @@ def test_ambiguous_process_clarifies_once_without_handoff(db, flow):
     assert conversation.status == "AI"
     assert conversation.handoff_reason is None
     assert conversation.context["conversation_v2"]["last_decision"]["action"] == "CLARIFY"
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 1
     assert len(flow.notified) == 0
     assert len(flow.sent) == 2
     assert "Qual processo você quer conhecer melhor?" in flow.sent[-1][1]
+
+
+def test_clarification_sequence_handoffs_only_after_two_questions(db, flow):
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 1
+
+    flow.receive("Sei lá, os processos.")
+    flow.drain()
+    assert conversation.status == "AI"
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 2
+    assert "antes de comprar" in flow.sent[-1][1]
+
+    flow.receive("Não sei explicar.")
+    flow.drain()
+    assert conversation.status == "WAITING_HUMAN"
+    assert conversation.handoff_reason == "LOW_CONFIDENCE"
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 2
+    assert conversation.context["conversation_v2"]["last_decision"]["action"] == "HANDOFF"
+    assert len(flow.notified) == 1
+    assert len(flow.sent) == 4  # welcome, two questions, one handoff
+
+
+def test_clarification_resolves_on_first_answer_and_stays_ai(db, flow):
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+    flow.receive("Compra")
+    flow.drain()
+
+    conversation = db.query(Conversation).one()
+    assert conversation.status == "AI"
+    assert conversation.handoff_reason is None
+    assert "clarification" not in conversation.context["conversation_v2"]
+    assert conversation.context["conversation_v2"]["last_decision"]["action"] == "ANSWER"
+    assert len(flow.notified) == 0
+
+
+def test_clarification_resolves_on_second_answer_and_stays_ai(db, flow):
+    for message in ["Como funcionam os processos?", "Não sei", "Entrega"]:
+        flow.receive(message)
+        flow.drain()
+
+    conversation = db.query(Conversation).one()
+    assert conversation.status == "AI"
+    assert "clarification" not in conversation.context["conversation_v2"]
+    assert conversation.context["conversation_v2"]["last_decision"]["action"] == "ANSWER"
+
+
+def test_concurrent_ambiguous_messages_create_only_clarify_one(db, flow):
+    flow.receive("Como funcionam os processos?")
+    flow.receive("Ainda não sei explicar")
+    flow.drain()
+
+    conversation = db.query(Conversation).one()
+    assert conversation.status == "AI"
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 1
+    assert conversation.context["conversation_v2"]["last_decision"]["action"] == "CLARIFY"
+    assert len(flow.sent) == 2  # welcome plus the latest message's first clarification
+
+
+def test_reprocessing_sent_inbound_does_not_advance_clarification(db, flow):
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    job = db.query(DeliveryJob).filter(DeliveryJob.kind == "inbound").one()
+    before = len(flow.sent)
+
+    hybrid.process_auto(job, flow.sessions)
+    db.expire_all()
+
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 1
+    assert len(flow.sent) == before
+
+
+def test_clarification_resets_on_claim_and_closed_cycle(client, db, flow):
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    assert client.post(f"/admin/conversations/{conversation.id}/claim").status_code == 200
+    db.refresh(conversation)
+    assert "clarification" not in conversation.context["conversation_v2"]
+
+    ai.change_mode(db, conversation.id, "AUTO")
+    conversation_service.change_status(db, conversation.id, "AI")
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+    conversation_service.change_status(db, conversation.id, "CLOSED")
+    assert "clarification" not in conversation.context["conversation_v2"]
+
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+    assert conversation.cycle == 2
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 1
+
+
+def test_resume_after_low_confidence_starts_without_clarification(db, flow):
+    for message in ["Como funcionam os processos?", "Não sei", "Ainda não sei"]:
+        flow.receive(message)
+        flow.drain()
+    conversation = db.query(Conversation).one()
+    assert conversation.handoff_reason == "LOW_CONFIDENCE"
+
+    conversation_service.change_status(db, conversation.id, "AI")
+    assert conversation.status == "AI"
+    assert "clarification" not in conversation.context["conversation_v2"]
+
+
+def test_waiting_human_message_does_not_advance_clarification(db, flow):
+    for message in ["Como funcionam os processos?", "Não sei", "Ainda não sei"]:
+        flow.receive(message)
+        flow.drain()
+    conversation = db.query(Conversation).one()
+    before = len(flow.sent)
+
+    flow.receive("Continuo sem saber")
+    flow.drain()
+
+    assert conversation.context["conversation_v2"]["clarification"]["attempts"] == 2
+    assert len(flow.sent) == before
+
+
+@pytest.mark.parametrize(("message", "reason"), [
+    ("Quero falar com uma pessoa", "HUMAN_REQUESTED"),
+    ("Quero comprar aquela camiseta", "PURCHASE_INTENT"),
+    ("Como faço o PIX?", "PAYMENT"),
+])
+def test_hard_handoff_during_clarification_keeps_real_reason(db, flow, message, reason):
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+
+    flow.receive(message)
+    flow.drain()
+
+    conversation = db.query(Conversation).one()
+    assert conversation.status == "WAITING_HUMAN"
+    assert conversation.handoff_reason == reason
+    assert "clarification" not in conversation.context["conversation_v2"]
+    assert conversation.context["conversation_v2"]["last_decision"]["reason_code"] == reason
+
+
+def test_assist_suggestion_and_off_messages_do_not_create_clarification(client, db, flow, monkeypatch):
+    from schemas.atendimento import AgentResponse
+
+    flow.receive("Olá")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    assert client.post(f"/admin/conversations/{conversation.id}/claim").status_code == 200
+
+    monkeypatch.setattr(ai.ai_agent, "respond", lambda *_: AgentResponse(
+        message="Qual assunto?", decision_hint="CLARIFY", decision_reason_code="AMBIGUOUS_MESSAGE"
+    ))
+    assert client.post(f"/admin/conversations/{conversation.id}/ai-suggestion", json={}).status_code == 200
+    db.refresh(conversation)
+    assert conversation.ai_mode == "ASSIST"
+    assert "clarification" not in conversation.context.get("conversation_v2", {})
+
+    ai.change_mode(db, conversation.id, "OFF")
+    before = len(flow.sent)
+    flow.receive("Como funcionam os processos?")
+    flow.drain()
+    assert "clarification" not in conversation.context.get("conversation_v2", {})
+    assert len(flow.sent) == before
 
 
 def test_invalid_structured_agent_response_uses_ai_failure(db, flow, monkeypatch):

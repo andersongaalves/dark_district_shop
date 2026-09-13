@@ -1,11 +1,11 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `8efc9760c45072a6081b5ad94aaa37976e3fcf01`
+Last verified against commit: `8d1c95cf586b53b2c92e8b303e6866d75de94000`
 
 Conversational V2:
-[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). A F2A do contrato
-de decisão está implementada; F2B–F2G permanecem `PLANNED` e não descrevem comportamento
-atualmente implementado.
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A e F2B estão
+implementadas; F2C–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
+implementado.
 
 ## Seleção do fluxo
 
@@ -93,11 +93,12 @@ Compra/reserva envia texto de transição para finalizar com atendente. Os demai
 sensíveis também pausam a IA. Handoff grava `WAITING_HUMAN`, razão, nova versão e uma
 chave de evento; mensagens posteriores não repetem transição ou notificação.
 
-Ambiguidade simples agora produz `CLARIFY` e mantém a conversa em `AI`; o consumer não
-infere mais `LOW_CONFIDENCE` por prefixo da mensagem. A contagem e o handoff após duas
-tentativas pertencem à F2B e ainda não estão implementados. Erros de provider/consulta ou
-saída inválida viram `AI_FAILURE`. Resultado vazio e confiável do catálogo é respondido
-como indisponibilidade e não deve sugerir outra peça como se fosse a pedida.
+Ambiguidade simples produz `CLARIFY` e mantém a conversa em `AI`; o consumer não infere
+`LOW_CONFIDENCE` por prefixo da mensagem. A IA pode enviar no máximo duas perguntas de
+esclarecimento. Se a entrada seguinte continuar incompreensível, ocorre
+`HANDOFF/LOW_CONFIDENCE`. Erros de provider/consulta ou saída inválida continuam como
+`AI_FAILURE`. Resultado vazio e confiável do catálogo é respondido como indisponibilidade
+e não deve sugerir outra peça como se fosse a pedida.
 
 ## Core de decisão conversacional
 
@@ -110,9 +111,45 @@ como indisponibilidade e não deve sugerir outra peça como se fosse a pedida.
 
 As regras determinísticas produzem `HANDOFF` antes de chamar o agente. O `AgentResponse`
 usa hints internos e excluídos da resposta HTTP para sinalizar esclarecimento, mantendo o
-contrato do Web Chat. O consumer persiste `conversation_v2.schema_version` e
-`conversation_v2.last_decision` no JSON existente. Contexto antigo ou vazio continua
-válido; F2A ainda não persiste tentativas, foco ou preferências V2.
+contrato do Web Chat. O consumer persiste `conversation_v2.schema_version`,
+`conversation_v2.last_decision` e, enquanto necessário, `conversation_v2.clarification`
+no JSON existente. Contexto antigo ou vazio continua válido; foco e preferências V2
+permanecem planejados para F2C.
+
+## Estado de clarification
+
+`MAX_CLARIFICATION_ATTEMPTS = 2` fica em `whatsapp_ai_service.py`. A existência do bloco
+abaixo significa que há esclarecimento ativo:
+
+```json
+{
+  "conversation_v2": {
+    "schema_version": 1,
+    "clarification": {
+      "attempts": 1,
+      "kind": "PROCESS_TOPIC",
+      "options": ["compra", "entrega", "troca_devolucao", "atendimento", "catalogo"],
+      "source_message_id": "<id interno da mensagem>"
+    },
+    "last_decision": {
+      "action": "CLARIFY",
+      "reason_code": "AMBIGUOUS_PROCESS",
+      "source_message_id": "<id interno da mensagem>"
+    }
+  }
+}
+```
+
+A primeira ambiguidade grava tentativa 1. Nova resposta ainda ambígua grava tentativa 2
+e usa uma pergunta mais orientada. Outra resposta incompreensível mantém o contador em 2,
+registra `HANDOFF` como última decisão e muda para `WAITING_HUMAN` com
+`LOW_CONFIDENCE`. Respostas allowlisted como “Compra”, “Entrega” ou “Troca” usam o assunto
+pendente para formular uma consulta clara e removem `clarification` após `ANSWER`.
+
+Hard handoff remove o esclarecimento antes de preservar sua razão real. Claim, close,
+retomada atual para `AI` e mudança para ASSIST/OFF também removem o bloco. Reabertura
+zera todo o contexto do ciclo anterior. Mensagens em `WAITING_HUMAN`/`HUMAN`, sugestões
+ASSIST, modo OFF, eventos duplicados e jobs sem ownership não consomem tentativas.
 
 ## Notificação do atendente
 

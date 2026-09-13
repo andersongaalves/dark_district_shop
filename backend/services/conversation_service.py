@@ -161,6 +161,9 @@ def change_status(db: Session, conversation_id: str, status: str):
         raise SupportError("WhatsApp permanece em atendimento humano.", 409)
     if conversation.channel == "web" and status == "CLOSED":
         raise SupportError("Use o encerramento da sessão web.", 409)
+    if conversation.channel == "whatsapp":
+        from services.whatsapp_ai_service import clear_clarification_context
+        conversation.context = clear_clarification_context(conversation.context)
     if conversation.channel == "whatsapp" and settings.AI_WHATSAPP_ENABLED and status == "WAITING_HUMAN":
         from services.whatsapp_hybrid_service import handoff
         source = db.scalar(select(Message).where(Message.conversation_id == conversation_id, Message.sender == "customer")

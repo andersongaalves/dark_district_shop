@@ -34,6 +34,8 @@ def outbound(db, c, key, text, purpose, timestamp, products=None):
 
 
 def handoff(db, c, reason, source, *, transition=True):
+    if reason != "LOW_CONFIDENCE":
+        c.context = ai.clear_clarification_context(c.context)
     if c.status == "WAITING_HUMAN":
         return
     c.status = "WAITING_HUMAN"
@@ -91,7 +93,7 @@ def receive_messages(db, incoming_messages):
             if c.ai_mode != "AUTO":
                 handoff(db, c, "HUMAN_REQUESTED", source, transition=False)
         if c.status == "AI" and c.ai_mode == "AUTO":
-            decision = ai.hard_handoff_decision(source.content)
+            decision = ai.hard_handoff_decision(source.content, c.context)
             if decision:
                 c.context = ai.context_after_decision(c.context, decision, source.id)
                 handoff(db, c, decision.handoff_reason.value, source)

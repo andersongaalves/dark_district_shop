@@ -113,22 +113,23 @@ futuro pedido/pagamento exige desenho explícito e migration própria.
 
 ## Mensagens ambíguas são esclarecidas antes de LOW_CONFIDENCE
 
-Status: Planned
+Status: Implemented
 
-Decision: a IA conversacional V2 poderá fazer até duas perguntas orientadas antes de
-encaminhar por baixa confiança. Handoffs claros continuam imediatos.
+Decision: a IA conversacional V2 faz até duas perguntas orientadas antes de encaminhar
+por baixa confiança. Handoffs claros continuam imediatos.
 
-Implications: `LOW_CONFIDENCE` passa a significar incompreensão persistente. Falha técnica
-permanece `AI_FAILURE`, e perguntas de descoberta com intenção já conhecida não gastam o
-limite de esclarecimento. Especificação em
+Implications: `LOW_CONFIDENCE` significa incompreensão persistente neste fluxo. Falha
+técnica permanece `AI_FAILURE`; perguntas de descoberta com intenção já conhecida serão
+tratadas separadamente na fase de descoberta. Especificação em
 `docs/agent-context/whatsapp-conversation-v2-plan.md`.
 
 ## Estado conversacional V2 reutiliza o JSON existente
 
-Status: Planned
+Status: Partially Implemented
 
-Decision: tentativas de esclarecimento, foco de produto, preferências e última decisão
-serão persistidos em um bloco versionado e validado de `Conversation.context`.
+Decision: tentativas de esclarecimento e última decisão são persistidas em um bloco
+versionado e validado de `Conversation.context`. Foco de produto e preferências continuam
+planejados para a fase de descoberta.
 
 Implications: a primeira implementação não requer colunas ou migration. Mensagens e
 DeliveryJobs existentes continuam sendo a fonte de histórico e idempotência; produtos
