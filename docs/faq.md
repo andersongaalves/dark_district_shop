@@ -25,7 +25,9 @@ localmente, inclusive com `LLM_PROVIDER=disabled`. Com provider habilitado, a
 ferramenta `consultar_faq` também permite selecionar um tópico ou todos (`topic: null`).
 O backend monta a resposta com os textos cadastrados; o modelo não redige novas
 políticas. Perguntar sobre o FAQ preserva os filtros e produtos da conversa.
-O WhatsApp é exclusivamente humano, com uma única saudação fixa; não consulta o FAQ ou a IA.
+No modo legado (`AI_WHATSAPP_ENABLED=false`), o WhatsApp é humano e não consulta o FAQ.
+No modo híbrido, AUTO e ASSIST reutilizam `consultar_faq`; pedidos sensíveis continuam
+encaminhados a humano. Consulte [o guia híbrido](whatsapp-hybrid.md).
 
 Perguntas gerais sobre devolução recebem o prazo cadastrado. Pedidos como “quero
 devolver minha peça” e solicitações de atendente continuam encaminhados à equipe.
@@ -43,4 +45,4 @@ necessárias para conversar com o agente; o FAQ público funciona sem ativar o c
 Os testes cobrem conteúdo público, respostas do agente do site, seleção da ferramenta
 pelo provider simulado, contexto do catálogo, encaminhamento, carregamento e retentativa
 da página e texto seguro no DOM. O frontend é testado com jsdom. O WhatsApp tem
-testes separados de saudação única e atendimento humano, sem consulta ao FAQ.
+testes separados para o legado humano e para consultas/handoffs do modo híbrido.

@@ -1,5 +1,10 @@
 # Atendimento Dark District: IA no site, humano no WhatsApp
 
+> Este documento descreve o fluxo legado selecionado por
+> `AI_WHATSAPP_ENABLED=false`. Para o comportamento atual opcional com AUTO, ASSIST,
+> OFF, ciclos e DeliveryJob, leia [o guia híbrido](whatsapp-hybrid.md). O código e esse
+> guia são a fonte de verdade para instalações com a feature ativada.
+
 O projeto mantém clientes, identidades, conversas e mensagens no PostgreSQL, com
 fluxos distintos por canal. O **Web Chat usa o AI Agent normalmente**. O **WhatsApp
 é humano**, com uma única saudação automática fixa enviada pelo processo da API.
