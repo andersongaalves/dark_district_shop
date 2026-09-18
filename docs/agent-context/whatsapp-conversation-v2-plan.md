@@ -1,6 +1,6 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: IN PROGRESS — F2A–F2B IMPLEMENTED; F2C–F2G PLANNED
+Status: IN PROGRESS — F2A–F2C IMPLEMENTED; F2D–F2G PLANNED
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
@@ -8,7 +8,9 @@ F2A implementation based on commit: `8efc9760c45072a6081b5ad94aaa37976e3fcf01`
 
 F2B implementation based on commit: `8d1c95cf586b53b2c92e8b303e6866d75de94000`
 
-Este documento especifica a evolução incremental. Somente F2A e F2B marcadas como
+F2C implementation based on commit: `8150d3a309dc6b2f4f51e6ee9d4be5618832a06e`
+
+Este documento especifica a evolução incremental. Somente F2A, F2B e F2C marcadas como
 `IMPLEMENTED` estão ativas; as demais seções continuam sendo desenho futuro até a fase
 de implementação, testes e publicação correspondente. O comportamento atual consolidado
 continua documentado em [whatsapp-ai.md](whatsapp-ai.md).
@@ -26,8 +28,8 @@ Essa política confunde duas situações:
 - incapacidade persistente, depois de tentativas orientadas, que exige humano.
 
 O agente já recebia histórico limitado e mantinha `filters`/`product_ids`. A F2A passou a
-expressar `CLARIFY` e a última decisão de forma estruturada. Contagem de esclarecimentos e
-referências ordinais continuam planejadas para as fases seguintes.
+expressar `CLARIFY` e a última decisão de forma estruturada; F2B acrescentou a contagem de
+esclarecimentos e F2C implementou foco, preferências e referências ordinais.
 
 ## 2. Objetivos
 
@@ -537,13 +539,23 @@ resolução, hard handoff, claim, close, retomada, mudança de modo e novo ciclo
 
 ### F2C — Descoberta e referências de produto
 
-Status: PLANNED
+Status: IMPLEMENTED
 
-Arquivos prováveis: `ai_agent.py`, `whatsapp_ai_service.py`, `tools/catalog_tools.py`
-somente se faltar filtro de leitura.
+Arquivos: `backend/services/ai_agent.py` e
+`backend/services/whatsapp_ai_service.py`.
 
-Responsabilidade: preferências, ordem/foco, slots e reconsulta. Risco: referência errada
-ou informação de catálogo vencida. Testes: jornadas multi-turn e revalidação.
+Resultado: `build_whatsapp_agent_input` fornece no máximo 12 mensagens relevantes do
+ciclo atual e projeta memória estruturada validada para o agente compartilhado. O bloco
+`conversation_v2` persiste `focus.product_ids` em ordem, `focus.selected_product_id` e
+`preferences` allowlisted (`garment`, `style_query`, `size`, `color`, `max_price`,
+`product_type`, `offer_only`). A apresentação continua limitada por
+`CHAT_MAX_PRODUCTS` (5 por padrão) e possui limite defensivo absoluto de 10 referências.
+
+Ordinais até a terceira e “última”, além de referências como “essa” e “aquela”, são
+resolvidos deterministicamente quando o foco é suficiente; caso contrário produzem
+`CLARIFY`. Consultas de preço, cor, tamanho e estoque usam apenas o ID em foco e sempre
+reconsultam as tools. Novo ciclo continua zerando todo o contexto; handoff preserva foco
+e preferências úteis para o atendente e limpa apenas o estado temporário previsto.
 
 ### F2D — Saudação por modo e retomada
 

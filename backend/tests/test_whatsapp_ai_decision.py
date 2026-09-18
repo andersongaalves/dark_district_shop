@@ -112,6 +112,23 @@ def test_hard_handoff_interrupts_and_clears_clarification(db, monkeypatch, messa
     assert "clarification" not in final_context["conversation_v2"]
 
 
+def test_hard_handoff_preserves_product_context_for_human(db):
+    context = {
+        "conversation_v2": {
+            "schema_version": 1,
+            "focus": {"product_ids": ["product-a"], "selected_product_id": "product-a"},
+            "preferences": {"size": "M", "color": "preto"},
+        },
+    }
+
+    decision = ai.decide(db, incoming("Quero comprar essa", context))
+    final_context = ai.context_after_decision(context, decision, "message-1")
+
+    assert decision.handoff_reason == HandoffReason.PURCHASE_INTENT
+    assert final_context["conversation_v2"]["focus"]["selected_product_id"] == "product-a"
+    assert final_context["conversation_v2"]["preferences"] == {"size": "M", "color": "preto"}
+
+
 def test_clear_supported_question_is_answer(db):
     decision = ai.decide(db, incoming("Como funciona a compra?"))
 
@@ -180,6 +197,8 @@ def test_old_or_empty_context_accepts_last_decision():
 
     assert empty["conversation_v2"] == {
         "schema_version": 1,
+        "focus": {"product_ids": [], "selected_product_id": None},
+        "preferences": {"size": "M"},
         "last_decision": {
             "action": "ANSWER",
             "reason_code": "SUPPORTED_RESPONSE",
@@ -208,6 +227,63 @@ def test_f2a_context_lazily_adds_clarification(db):
 
     assert updated["conversation_v2"]["clarification"]["attempts"] == 1
     assert updated["conversation_v2"]["clarification"]["source_message_id"] == "new-message"
+
+
+def test_preferences_are_allowlisted_and_updated_across_turns(db):
+    first = ai.decide(db, incoming("Quero uma camiseta dark preta, M, até 80"))
+    context = ai.context_after_decision({}, first, "message-1")
+
+    assert context["conversation_v2"]["preferences"] == {
+        "garment": "camiseta", "style_query": "dark", "size": "M",
+        "color": "preto", "max_price": 80.0,
+    }
+
+    second = ai.decide(db, incoming("Pode ser G também", context))
+    context = ai.context_after_decision(context, second, "message-2")
+
+    assert context["conversation_v2"]["preferences"]["size"] == "G"
+    assert context["conversation_v2"]["preferences"]["color"] == "preto"
+
+
+def test_product_ordinals_update_focus_deterministically(db, monkeypatch):
+    seen = []
+
+    def respond(_db, request):
+        seen.append(request.context)
+        return AgentResponse(message="Produto consultado", context=request.context)
+
+    monkeypatch.setattr(ai.ai_agent, "respond", respond)
+    context = {"conversation_v2": {
+        "schema_version": 1,
+        "focus": {"product_ids": ["product-a", "product-b", "product-c"], "selected_product_id": None},
+        "preferences": {},
+    }}
+
+    second = ai.decide(db, incoming("Gostei da segunda", context))
+    second_context = ai.context_after_decision(context, second, "message-1")
+    last = ai.decide(db, incoming("A última", context))
+    last_context = ai.context_after_decision(context, last, "message-2")
+
+    assert seen[0]["selected_product_id"] == "product-b"
+    assert second_context["conversation_v2"]["focus"]["selected_product_id"] == "product-b"
+    assert seen[1]["selected_product_id"] == "product-c"
+    assert last_context["conversation_v2"]["focus"]["selected_product_id"] == "product-c"
+
+
+def test_ambiguous_product_reference_without_focus_clarifies(db, monkeypatch):
+    monkeypatch.setattr(ai.ai_agent, "respond", lambda *_: pytest.fail("agent must not guess"))
+
+    decision = ai.decide(db, incoming("Tem essa em M?"))
+
+    assert decision.action == ai.DecisionAction.CLARIFY
+    assert decision.reason_code == "AMBIGUOUS_PRODUCT_REFERENCE"
+
+
+def test_product_focus_is_bounded_and_deduplicated():
+    focus = ai.ProductFocus(product_ids=["same", "same", *[f"product-{index}" for index in range(20)]])
+
+    assert focus.product_ids == ["same", *[f"product-{index}" for index in range(9)]]
+    assert len(focus.product_ids) == ai.MAX_FOCUS_PRODUCTS
 
 
 def test_webchat_response_contract_does_not_expose_decision_hint(db):

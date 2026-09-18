@@ -145,11 +145,13 @@ def _local_plan(incoming, text):
     if piece:
         # A new garment starts a fresh search; refinements keep active filters.
         query = "calça" if piece == "calca" else piece
-        if filters.get("garment") != piece and filters.get("query") != query:
+        if filters.get("garment") not in {None, piece}:
             filters = {}
         filters["garment"] = piece
-        # The garment filter handles accents and category-only matches itself.
-        filters.pop("query", None)
+        # Preserve a controlled style query supplied by the WhatsApp context;
+        # only remove legacy query values that merely duplicate the garment.
+        if filters.get("query") in {piece, query}:
+            filters.pop("query", None)
     color = next((value for word, value in COLORS.items() if re.search(rf"\b{word}\b", text)), None)
     size = re.search(r"\b(?:tamanho\s*)?(pp|xxg|xg|gg|p|m|g)\b|\btamanho\s*(3[4-9]|[45][0-9]|60)\b", text)
     price = re.search(r"(?:ate|no maximo|menos de)\s*(?:r\$\s*)?(\d{1,6}(?:[.,]\d{1,2})?)", text)
@@ -173,17 +175,29 @@ def _local_plan(incoming, text):
     if re.search(r"\b(sem oferta|fora da oferta|sem promocao)\b", text):
         filters.pop("offer_active", None)
     product_ids = incoming.context.get("product_ids", [])
+    selected_product_id = incoming.context.get("selected_product_id")
+    if not isinstance(selected_product_id, str) or selected_product_id not in product_ids:
+        selected_product_id = None
     explicit = re.search(r"\b[a-z]{1,12}-(?:\d{1,8}-?){1,3}\b", incoming.message, re.IGNORECASE)
     product_id = explicit.group(0).rstrip("-") if explicit else None
-    reference = re.search(r"\b(essa|esse|ela|ele|primeira|primeiro|segunda|segundo|terceira|terceiro)\b", text)
+    reference = re.search(r"\b(essa|esse|esta|este|aquela|aquele|ela|ele|primeira|primeiro|segunda|segundo|terceira|terceiro|ultima|ultimo)\b|\boutra\s+(?:parecida|semelhante)\b", text)
+    fact_request = bool(color or size or re.search(
+        r"\b(preco|valor|estoque|disponivel|cores|tamanhos|material|tecido|medidas|descricao|detalhes)\b|quanto (?:custa|fica)", text
+    ))
     if not product_id and isinstance(product_ids, list) and product_ids:
         if reference and (not piece or _remembered_filters(incoming).get("garment") == piece):
-            index = 2 if re.search(r"\b(terceiro|terceira)\b", text) else 1 if re.search(r"\b(segundo|segunda)\b", text) else 0
-            product_id = product_ids[index] if len(product_ids) > index else None
-        elif not piece and len(product_ids) == 1 and (color or size or re.search(r"\b(preco|valor|estoque|disponivel|cores|tamanhos|material|tecido|medidas|descricao|detalhes)\b|quanto custa", text)):
-            product_id = product_ids[0]
+            if re.search(r"\b(?:ultima|ultimo)\b", text):
+                product_id = product_ids[-1]
+            elif re.search(r"\b(?:terceiro|terceira)\b", text):
+                product_id = product_ids[2] if len(product_ids) > 2 else None
+            elif re.search(r"\b(?:segundo|segunda)\b", text):
+                product_id = product_ids[1] if len(product_ids) > 1 else None
+            else:
+                product_id = selected_product_id or (product_ids[0] if len(product_ids) == 1 else None)
+        elif not piece and fact_request:
+            product_id = selected_product_id or (product_ids[0] if len(product_ids) == 1 else None)
     if product_id:
-        if re.search(r"\b(preco|valor|quanto custa)\b", text) and not color and not size:
+        if re.search(r"\b(preco|valor)\b|quanto (?:custa|fica)", text) and not color and not size:
             return [ToolCall("consultar_preco", {"product_id": product_id})]
         return [ToolCall("consultar_estoque", {"product_id": product_id,
                          **{key: value for key, value in filters.items() if key in {"size", "color"}}})]

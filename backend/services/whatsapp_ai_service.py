@@ -6,19 +6,34 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from sqlalchemy import select, update, or_
 from core.config import settings
 from models.atendimento import Conversation, Message, HandoffReason, utc_now, new_id
 from schemas.atendimento import AgentInput, AgentResponse, HistoryEntry
+from schemas.produto import Garment, ProductType
 from services import ai_agent
-from services.agent_language import normalize
+from services.agent_language import COLORS, PIECES, normalize, wants_products
 from services.customer_service import SupportError
 
 logger = logging.getLogger(__name__)
 PURCHASE_TEXT = "Perfeito 🖤 Vou encaminhar você para um atendente da Dark District para finalizar sua compra. Em breve ele continua por aqui."
 HANDOFF_TEXT = "Vou encaminhar sua solicitação para um atendente da Dark District. O atendimento automático fica pausado enquanto você aguarda."
 MAX_CLARIFICATION_ATTEMPTS = 2
+WHATSAPP_CONTEXT_HISTORY_LIMIT = 12
+MAX_FOCUS_PRODUCTS = 10
+
+STYLE_TERMS = {
+    "dark": "dark",
+    "oversized": "oversized",
+    "gotico": "gotico",
+    "gotica": "gotico",
+    "gothic": "gotico",
+    "streetwear": "streetwear",
+    "punk": "punk",
+    "discreto": "discreto",
+    "discreta": "discreto",
+}
 
 PROCESS_TOPIC_OPTIONS = ["compra", "entrega", "troca_devolucao", "atendimento", "catalogo"]
 PROCESS_TOPIC_PROMPTS = {
@@ -50,6 +65,70 @@ class ClarificationState(BaseModel):
     kind: Literal["PROCESS_TOPIC", "GENERAL"]
     options: list[ClarificationOption] = Field(default_factory=list, max_length=5)
     source_message_id: str | None = Field(default=None, min_length=1, max_length=80)
+
+
+class ProductFocus(BaseModel):
+    """Bounded product references for the current conversation cycle."""
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    product_ids: list[str] = Field(default_factory=list, max_length=MAX_FOCUS_PRODUCTS)
+    selected_product_id: str | None = Field(default=None, min_length=1, max_length=50)
+
+    @field_validator("product_ids", mode="before")
+    @classmethod
+    def unique_bounded_ids(cls, values):
+        result = []
+        for value in values if isinstance(values, list) else []:
+            if isinstance(value, str) and 0 < len(value) <= 50 and value not in result:
+                result.append(value)
+            if len(result) == MAX_FOCUS_PRODUCTS:
+                break
+        return result
+
+    @model_validator(mode="after")
+    def selected_must_be_presented(self):
+        if self.selected_product_id and self.selected_product_id not in self.product_ids:
+            self.selected_product_id = None
+        return self
+
+
+class ConversationPreferences(BaseModel):
+    """Allowlisted discovery preferences; never a permanent customer profile."""
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+
+    garment: Garment | None = None
+    style_query: str | None = Field(default=None, min_length=1, max_length=100)
+    size: str | None = Field(default=None, min_length=1, max_length=50)
+    color: str | None = Field(default=None, min_length=1, max_length=100)
+    max_price: float | None = Field(default=None, ge=0, le=1_000_000, allow_inf_nan=False)
+    product_type: ProductType | None = None
+    offer_only: bool | None = None
+
+    @field_validator("style_query")
+    @classmethod
+    def allow_style(cls, value):
+        normalized = normalize(value) if value else value
+        if normalized not in set(STYLE_TERMS.values()):
+            raise ValueError("Estilo fora da allowlist.")
+        return normalized
+
+    @field_validator("size")
+    @classmethod
+    def allow_size(cls, value):
+        normalized = value.strip().upper() if value else value
+        if not re.fullmatch(r"PP|P|M|G|GG|XG|XXG|3[4-9]|[45][0-9]|60", normalized):
+            raise ValueError("Tamanho inválido.")
+        return normalized
+
+    @field_validator("color")
+    @classmethod
+    def allow_color(cls, value):
+        normalized = normalize(value) if value else value
+        if normalized not in set(COLORS.values()):
+            raise ValueError("Cor fora da allowlist.")
+        return normalized
 
 
 class WhatsAppDecision(BaseModel):
@@ -104,6 +183,154 @@ def clarification_from_context(context):
         return ClarificationState.model_validate(raw) if raw is not None else None
     except ValidationError:
         return None
+
+
+def _focus_from_context(context):
+    if not isinstance(context, dict):
+        return ProductFocus()
+    v2 = context.get("conversation_v2")
+    raw = v2.get("focus") if isinstance(v2, dict) else None
+    if raw is None:
+        raw = {
+            "product_ids": context.get("product_ids", []),
+            "selected_product_id": context.get("selected_product_id"),
+        }
+    try:
+        return ProductFocus.model_validate(raw)
+    except ValidationError:
+        return ProductFocus()
+
+
+def _preferences_from_filters(filters):
+    if not isinstance(filters, dict):
+        return ConversationPreferences()
+    values = {
+        "garment": filters.get("garment"),
+        "style_query": filters.get("query"),
+        "size": filters.get("size"),
+        "color": filters.get("color"),
+        "max_price": filters.get("max_price"),
+        "product_type": filters.get("product_type"),
+        "offer_only": filters.get("offer_active"),
+    }
+    try:
+        return ConversationPreferences.model_validate({key: value for key, value in values.items() if value is not None})
+    except ValidationError:
+        # Validate fields independently so one bad legacy/provider value does not
+        # discard other safe preferences.
+        safe = {}
+        for key, value in values.items():
+            if value is None:
+                continue
+            try:
+                safe[key] = ConversationPreferences.model_validate({key: value}).model_dump(exclude_none=True)[key]
+            except (ValidationError, KeyError):
+                continue
+        return ConversationPreferences.model_validate(safe)
+
+
+def _preferences_from_context(context):
+    if not isinstance(context, dict):
+        return ConversationPreferences()
+    v2 = context.get("conversation_v2")
+    raw = v2.get("preferences") if isinstance(v2, dict) else None
+    if raw is not None:
+        try:
+            return ConversationPreferences.model_validate(raw)
+        except ValidationError:
+            pass
+    return _preferences_from_filters(context.get("filters"))
+
+
+def _preferences_to_filters(preferences):
+    values = preferences.model_dump(exclude_none=True)
+    filters = {key: values[key] for key in ("garment", "size", "color", "max_price", "product_type")
+               if key in values}
+    if values.get("style_query"):
+        filters["query"] = values["style_query"]
+    if "offer_only" in values:
+        filters["offer_active"] = values["offer_only"]
+    return filters
+
+
+def _preferences_for_message(current, message):
+    text = normalize(message)
+    values = current.model_dump(exclude_none=True)
+    garment = next((piece for piece in PIECES if re.search(rf"\b{piece}s?\b", text)), None)
+    if garment and values.get("garment") not in {None, garment}:
+        values = {}
+    if garment:
+        values["garment"] = garment
+    style = next((canonical for word, canonical in STYLE_TERMS.items()
+                  if re.search(rf"\b{word}\b", text)), None)
+    color = next((canonical for word, canonical in COLORS.items()
+                  if re.search(rf"\b{word}\b", text)), None)
+    size = re.search(r"\b(?:tamanho\s*)?(pp|xxg|xg|gg|p|m|g)\b|\btamanho\s*(3[4-9]|[45][0-9]|60)\b", text)
+    price = re.search(r"(?:ate|no maximo|menos de)\s*(?:r\$\s*)?(\d{1,6}(?:[.,]\d{1,2})?)", text)
+    if style:
+        values["style_query"] = style
+    if color:
+        values["color"] = color
+    if size:
+        values["size"] = (size.group(1) or size.group(2)).upper()
+    if price:
+        values["max_price"] = float(price.group(1).replace(",", "."))
+    if re.search(r"\b(oferta|ofertas|promocao|promocoes)\b", text):
+        values["offer_only"] = True
+    for word, product_type in (("brecho", "brecho"), ("drop", "drop"), ("drops", "drop")):
+        if re.search(rf"\b{word}\b", text):
+            values["product_type"] = product_type
+    if re.search(r"\b(sem limite|qualquer preco)\b", text):
+        values.pop("max_price", None)
+    if re.search(r"\b(qualquer cor|outras cores)\b", text):
+        values.pop("color", None)
+    if re.search(r"\b(qualquer tamanho|outros tamanhos)\b", text):
+        values.pop("size", None)
+    if re.search(r"\b(sem oferta|fora da oferta|sem promocao)\b", text):
+        values.pop("offer_only", None)
+    return ConversationPreferences.model_validate(values)
+
+
+def _focus_for_message(current, message):
+    text = normalize(message)
+    ids = current.product_ids
+    ordinal_patterns = [
+        (r"\b(?:primeira|primeiro)\b", 0),
+        (r"\b(?:segunda|segundo)\b", 1),
+        (r"\b(?:terceira|terceiro)\b", 2),
+        (r"\b(?:ultima|ultimo)\b", len(ids) - 1),
+    ]
+    for pattern, index in ordinal_patterns:
+        if re.search(pattern, text):
+            if 0 <= index < len(ids):
+                return current.model_copy(update={"selected_product_id": ids[index]}), False
+            return current, True
+    contextual_reference = bool(re.search(
+        r"\b(?:essa|esse|esta|este|aquela|aquele|ela|ele)\b|\boutra\s+(?:parecida|semelhante)\b|"
+        r"\ba\s+(?:pp|xxg|xg|gg|p|m|g|3[4-9]|[45][0-9]|60)\b", text
+    ))
+    if not contextual_reference:
+        return current, False
+    if current.selected_product_id:
+        return current, False
+    if len(ids) == 1:
+        return current.model_copy(update={"selected_product_id": ids[0]}), False
+    return current, True
+
+
+def _prepared_context(current, message):
+    """Build small structured memory and compatibility inputs for the shared agent."""
+    context = {key: value for key, value in (current if isinstance(current, dict) else {}).items()
+               if key != "suggestion_cache"}
+    preferences = _preferences_for_message(_preferences_from_context(context), message)
+    focus, ambiguous_reference = _focus_for_message(_focus_from_context(context), message)
+    context["filters"] = _preferences_to_filters(preferences)
+    context["product_ids"] = focus.product_ids
+    if focus.selected_product_id:
+        context["selected_product_id"] = focus.selected_product_id
+    else:
+        context.pop("selected_product_id", None)
+    return context, preferences, focus, ambiguous_reference
 
 
 def clear_clarification_context(current):
@@ -293,11 +520,39 @@ def decide(db, incoming):
     hard_handoff = hard_handoff_decision(incoming.message, incoming.context)
     if hard_handoff:
         return hard_handoff
-    effective_incoming = incoming
+    prepared_context, preferences, focus, ambiguous_reference = _prepared_context(
+        incoming.context, incoming.message
+    )
+    context_patch = {
+        "preferences": preferences.model_dump(exclude_none=True),
+        "focus": focus.model_dump(mode="json"),
+    }
+    if ambiguous_reference:
+        decision = WhatsAppDecision(
+            action=DecisionAction.CLARIFY,
+            response=AgentResponse(
+                message="Qual produto você quis dizer? Pode indicar a primeira, segunda, terceira ou enviar o nome da peça.",
+                decision_hint="CLARIFY",
+                decision_reason_code="AMBIGUOUS_PRODUCT_REFERENCE",
+            ),
+            reason_code="AMBIGUOUS_PRODUCT_REFERENCE",
+            context_patch=context_patch,
+        )
+        return _advance_clarification(decision, pending)
+    if (preferences.garment and preferences.style_query and not preferences.size
+            and wants_products(normalize(incoming.message))):
+        decision = WhatsAppDecision(
+            action=DecisionAction.ANSWER,
+            response=AgentResponse(message="Qual tamanho você procura?"),
+            reason_code="PREFERENCE_SLOT_REQUESTED",
+            context_patch=context_patch,
+        )
+        return _advance_clarification(decision, pending)
+    effective_incoming = incoming.model_copy(update={"context": prepared_context})
     if pending:
         resolved_message = _process_topic_message(incoming.message)
         if resolved_message:
-            effective_incoming = incoming.model_copy(update={"message": resolved_message})
+            effective_incoming = effective_incoming.model_copy(update={"message": resolved_message})
     try:
         decision = decision_from_agent_response(ai_agent.respond(db, effective_incoming))
     except Exception:
@@ -308,6 +563,9 @@ def decide(db, incoming):
             reason_code="AGENT_EXCEPTION",
             failure_kind="AGENT_EXCEPTION",
         )
+    decision = decision.model_copy(update={
+        "context_patch": {**context_patch, **decision.context_patch},
+    })
     return _advance_clarification(decision, pending)
 
 
@@ -315,12 +573,52 @@ def context_after_decision(current, decision, source_message_id):
     """Persist the minimal versioned V2 state while keeping legacy context compatible."""
     context = {key: value for key, value in (current if isinstance(current, dict) else {}).items()
                if key != "suggestion_cache"}
-    context.update(_agent_context_patch(decision.response) if decision.response else {})
-    context.update({key: value for key, value in decision.context_patch.items()
-                    if key in {"filters", "product_ids", "pending_correction"}})
+    response_patch = _agent_context_patch(decision.response) if decision.response else {}
+    legacy_patch = {key: value for key, value in decision.context_patch.items()
+                    if key in {"filters", "product_ids", "pending_correction"}}
+    response_patch.update(legacy_patch)
+    if "pending_correction" in response_patch:
+        context["pending_correction"] = response_patch["pending_correction"]
+
+    preferences = _preferences_from_context(context)
+    if "preferences" in decision.context_patch:
+        try:
+            preferences = ConversationPreferences.model_validate(decision.context_patch["preferences"])
+        except ValidationError:
+            pass
+    if "filters" in response_patch:
+        preferences = _preferences_from_filters(response_patch["filters"])
+
+    focus = _focus_from_context(context)
+    if "focus" in decision.context_patch:
+        try:
+            focus = ProductFocus.model_validate(decision.context_patch["focus"])
+        except ValidationError:
+            pass
+    response_ids = None
+    if decision.response and decision.response.products:
+        response_ids = [product.id for product in decision.response.products]
+    elif "product_ids" in response_patch:
+        response_ids = response_patch["product_ids"]
+    if response_ids is not None:
+        ids = ProductFocus(product_ids=response_ids).product_ids
+        selected = focus.selected_product_id if focus.selected_product_id in ids else None
+        if selected is None and len(ids) == 1:
+            selected = ids[0]
+        focus = ProductFocus(product_ids=ids, selected_product_id=selected)
+
+    # Root mirrors keep F2A/F2B and the shared agent compatible; V2 is canonical.
+    context["filters"] = _preferences_to_filters(preferences)
+    context["product_ids"] = focus.product_ids
+    if focus.selected_product_id:
+        context["selected_product_id"] = focus.selected_product_id
+    else:
+        context.pop("selected_product_id", None)
     existing_v2 = context.get("conversation_v2")
     v2 = dict(existing_v2) if isinstance(existing_v2, dict) else {}
     v2["schema_version"] = 1
+    v2["focus"] = focus.model_dump(mode="json")
+    v2["preferences"] = preferences.model_dump(exclude_none=True)
     if decision.clear_clarification:
         v2.pop("clarification", None)
     elif decision.clarification:
@@ -337,22 +635,33 @@ def context_after_decision(current, decision, source_message_id):
     return context
 
 
-def agent_input(db, conversation, source=None):
+def build_whatsapp_agent_input(db, conversation, source=None):
+    """Build a bounded, current-cycle input; messages remain untrusted conversation data."""
+    cycle_filter = or_(Message.extra_data["cycle"].as_integer() == conversation.cycle,
+                       (Message.extra_data["cycle"].as_integer().is_(None)) if conversation.cycle == 1 else False)
+    source = source or db.scalar(select(Message).where(Message.conversation_id == conversation.id,
+        Message.sender == "customer", cycle_filter
+    ).order_by(Message.created_at.desc(), Message.id.desc()).limit(1))
+    if not source:
+        raise SupportError("Não há mensagem do cliente neste ciclo.", 409)
+    history_limit = min(settings.CHAT_HISTORY_MESSAGES, WHATSAPP_CONTEXT_HISTORY_LIMIT)
     rows = db.scalars(select(Message).where(Message.conversation_id == conversation.id,
+        Message.id != source.id,
         Message.sender.in_(["customer", "assistant", "human"]),
         or_(Message.sender == "customer", Message.extra_data["delivery_status"].as_string() == "sent",
             Message.extra_data["delivery_status"].as_string().is_(None)),
-        or_(Message.extra_data["cycle"].as_integer() == conversation.cycle,
-            (Message.extra_data["cycle"].as_integer().is_(None)) if conversation.cycle == 1 else False)
-    ).order_by(Message.created_at.desc(), Message.id.desc()).limit(settings.CHAT_HISTORY_MESSAGES)).all()
-    source = source or next((m for m in rows if m.sender == "customer"), None)
-    if not source:
-        raise SupportError("Não há mensagem do cliente neste ciclo.", 409)
-    context = {key: value for key, value in (conversation.context or {}).items() if key != "suggestion_cache"}
+        cycle_filter
+    ).order_by(Message.created_at.desc(), Message.id.desc()).limit(history_limit)).all()
+    context, _, _, _ = _prepared_context(conversation.context, source.content)
     context.update(status=conversation.status, ai_mode=conversation.ai_mode, handoff_reason=conversation.handoff_reason)
     return AgentInput(channel="whatsapp", conversation_id=conversation.id, customer_id=conversation.customer_id,
         message=source.content[:2000], history=[HistoryEntry(sender=m.sender, content=m.content[:1000])
-        for m in reversed(rows) if m.id != source.id], context=context)
+        for m in reversed(rows)], context=context)
+
+
+def agent_input(db, conversation, source=None):
+    """Compatibility alias for the explicit WhatsApp context builder."""
+    return build_whatsapp_agent_input(db, conversation, source)
 
 
 def suggest(db, conversation_id, force=False):

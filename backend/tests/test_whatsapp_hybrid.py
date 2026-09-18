@@ -50,6 +50,71 @@ def test_auto_uses_real_catalog_without_mutating_stock(client, db, flow):
     assert not flow.notified
 
 
+def test_multiturn_size_answer_uses_current_preferences(client, db, flow):
+    create_product(client, title="Camiseta Oversized")
+
+    flow.receive("Tem camiseta oversized?")
+    flow.drain()
+    assert flow.sent[-1][1] == "Qual tamanho você procura?"
+
+    flow.receive("M")
+    flow.drain()
+
+    conversation = db.query(Conversation).one()
+    preferences = conversation.context["conversation_v2"]["preferences"]
+    assert preferences == {"garment": "camiseta", "style_query": "oversized", "size": "M"}
+    assert conversation.context["conversation_v2"]["last_decision"]["action"] == "ANSWER"
+    assert "Camiseta Oversized" in flow.sent[-1][1]
+
+
+def test_selected_product_stays_in_focus_for_color_size_and_price(client, db, flow):
+    create_product(client, id="prod-001", title="Produto A", price=100)
+    create_product(client, id="prod-002", title="Produto B", price=79)
+    create_product(client, id="prod-003", title="Produto C", price=120)
+
+    first = flow.receive("Mostre as peças disponíveis")
+    flow.receive(first.text, first.message_id)
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    presented = conversation.context["conversation_v2"]["focus"]["product_ids"]
+    assert len(presented) == 3
+    assert presented[1] == "prod-002"
+
+    flow.receive("Gostei da segunda")
+    flow.drain()
+    assert conversation.context["conversation_v2"]["focus"]["selected_product_id"] == "prod-002"
+
+    flow.receive("Tem essa em M?")
+    flow.drain()
+    flow.receive("E preta?")
+    flow.drain()
+    assert conversation.context["conversation_v2"]["preferences"]["size"] == "M"
+    assert conversation.context["conversation_v2"]["preferences"]["color"] == "preto"
+
+    flow.receive("Quanto fica?")
+    flow.drain()
+    assert "Produto B" in flow.sent[-1][1]
+    assert "R$ 79,00" in flow.sent[-1][1]
+
+    flow.receive("Tem outra parecida?")
+    flow.drain()
+    assert conversation.status == "AI"
+    assert conversation.context["conversation_v2"]["focus"]["selected_product_id"] == "prod-002"
+
+
+def test_context_history_is_limited_to_twelve_messages_in_current_cycle(db, flow):
+    for index in range(15):
+        flow.receive(f"mensagem {index}")
+
+    conversation = db.query(Conversation).one()
+    request = ai.build_whatsapp_agent_input(db, conversation)
+
+    assert len(request.history) == ai.WHATSAPP_CONTEXT_HISTORY_LIMIT
+    assert request.message == "mensagem 14"
+    assert request.history[0].content == "mensagem 2"
+    assert request.history[-1].content == "mensagem 13"
+
+
 def test_ambiguous_process_clarifies_once_without_handoff(db, flow):
     item = flow.receive("Como funcionam os processos?")
     flow.receive(item.text, item.message_id)
@@ -272,7 +337,15 @@ def test_closed_new_cycle_welcome_and_reset(db, flow, mode, expected):
     c = db.query(Conversation).one()
     ai.change_mode(db, c.id, mode)
     conversation_service.change_status(db, c.id, "CLOSED")
-    c.context = {"filters": {"size": "M"}, "pending_correction": "old"}
+    c.context = {
+        "filters": {"size": "M"},
+        "pending_correction": "old",
+        "conversation_v2": {
+            "schema_version": 1,
+            "focus": {"product_ids": ["old-product"], "selected_product_id": "old-product"},
+            "preferences": {"size": "M", "color": "preto"},
+        },
+    }
     db.commit()
     before = len(flow.sent)
     item = flow.receive("Bom dia")
@@ -280,6 +353,8 @@ def test_closed_new_cycle_welcome_and_reset(db, flow, mode, expected):
     flow.drain()
     assert c.cycle == 2 and c.status == expected
     assert c.context.get("pending_correction") != "old"
+    assert "old-product" not in str(c.context)
+    assert (c.context.get("conversation_v2", {}).get("preferences") or {}) == {}
     assert sum(text == hybrid.WELCOME_TEXT for _, text in flow.sent[before:]) == 1
 
 

@@ -1,10 +1,10 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `8d1c95cf586b53b2c92e8b303e6866d75de94000`
+Last verified against commit: `8150d3a309dc6b2f4f51e6ee9d4be5618832a06e`
 
 Conversational V2:
-[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A e F2B estão
-implementadas; F2C–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2C estão
+implementadas; F2D–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
 implementado.
 
 ## Seleção do fluxo
@@ -113,8 +113,8 @@ As regras determinísticas produzem `HANDOFF` antes de chamar o agente. O `Agent
 usa hints internos e excluídos da resposta HTTP para sinalizar esclarecimento, mantendo o
 contrato do Web Chat. O consumer persiste `conversation_v2.schema_version`,
 `conversation_v2.last_decision` e, enquanto necessário, `conversation_v2.clarification`
-no JSON existente. Contexto antigo ou vazio continua válido; foco e preferências V2
-permanecem planejados para F2C.
+no JSON existente. Contexto antigo ou vazio continua válido; foco e preferências V2 são
+normalizados pelo Context Builder da F2C.
 
 ## Estado de clarification
 
@@ -150,6 +150,50 @@ Hard handoff remove o esclarecimento antes de preservar sua razão real. Claim, 
 retomada atual para `AI` e mudança para ASSIST/OFF também removem o bloco. Reabertura
 zera todo o contexto do ciclo anterior. Mensagens em `WAITING_HUMAN`/`HUMAN`, sugestões
 ASSIST, modo OFF, eventos duplicados e jobs sem ownership não consomem tentativas.
+
+## Contexto multi-turn
+
+`whatsapp_ai_service.build_whatsapp_agent_input` é o Context Builder do canal. Ele lê no
+máximo 12 mensagens relevantes do ciclo atual, preserva os papéis `customer`, `assistant`
+e `human`, exclui mensagens técnicas e respostas ainda não enviadas e limita cada texto.
+Mensagens humanas entram como conteúdo de conversa não confiável, nunca como instrução de
+sistema. Ciclos anteriores não entram no input; mensagens legadas sem ciclo continuam
+aceitas apenas no ciclo 1.
+
+O JSON versionado contém memória operacional do ciclo:
+
+```json
+{
+  "conversation_v2": {
+    "schema_version": 1,
+    "focus": {
+      "product_ids": ["id-na-ordem-apresentada"],
+      "selected_product_id": "id-selecionado-ou-null"
+    },
+    "preferences": {
+      "garment": "camiseta",
+      "style_query": "dark",
+      "size": "M",
+      "color": "preto",
+      "max_price": 80.0
+    }
+  }
+}
+```
+
+As preferências aceitas são somente `garment`, `style_query`, `size`, `color`,
+`max_price`, `product_type` e `offer_only`. Estilos e demais valores passam por allowlist
+e validação; objetos do provider não são persistidos livremente. `focus.product_ids`
+mantém a ordem apresentada, limitado por `CHAT_MAX_PRODUCTS` (5 por padrão) e por um teto
+defensivo de 10 IDs. “Primeira”, “segunda”, “terceira” e “última” selecionam um ID;
+“essa”, “aquela” e equivalentes usam o produto já selecionado ou o único apresentado.
+Sem referência suficiente, a decisão é `CLARIFY`, sem adivinhar.
+
+Preço, oferta, estoque e variantes não são guardados no contexto. O agente passa apenas
+o ID para as tools e reconsulta o catálogo antes de responder. Foco e preferências são
+preservados em handoff para ajudar o atendente, mas todo o bloco é limpo quando uma
+conversa `CLOSED` inicia novo ciclo. As chaves raiz `filters` e `product_ids` continuam
+como espelhos controlados para compatibilidade com F2A/F2B e com o agente compartilhado.
 
 ## Notificação do atendente
 
