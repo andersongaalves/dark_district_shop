@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.orm import sessionmaker
 from models.atendimento import Conversation, Message, DeliveryJob, utc_now
+from models.produto import Produto
 from channels.whatsapp_channel import IncomingText
 from core.config import settings
 from services import whatsapp_hybrid_service as hybrid, whatsapp_ai_service as ai, conversation_service
@@ -55,7 +56,7 @@ def test_multiturn_size_answer_uses_current_preferences(client, db, flow):
 
     flow.receive("Tem camiseta oversized?")
     flow.drain()
-    assert flow.sent[-1][1] == "Qual tamanho você procura?"
+    assert "Qual tamanho você procura?" in flow.sent[-1][1]
 
     flow.receive("M")
     flow.drain()
@@ -68,11 +69,11 @@ def test_multiturn_size_answer_uses_current_preferences(client, db, flow):
 
 
 def test_selected_product_stays_in_focus_for_color_size_and_price(client, db, flow):
-    create_product(client, id="prod-001", title="Produto A", price=100)
-    create_product(client, id="prod-002", title="Produto B", price=79)
-    create_product(client, id="prod-003", title="Produto C", price=120)
+    create_product(client, id="prod-001", title="Camiseta Produto A", price=100)
+    create_product(client, id="prod-002", title="Camiseta Produto B", price=79)
+    create_product(client, id="prod-003", title="Camiseta Produto C", price=120)
 
-    first = flow.receive("Mostre as peças disponíveis")
+    first = flow.receive("Quero camiseta M")
     flow.receive(first.text, first.message_id)
     flow.drain()
     conversation = db.query(Conversation).one()
@@ -93,13 +94,15 @@ def test_selected_product_stays_in_focus_for_color_size_and_price(client, db, fl
 
     flow.receive("Quanto fica?")
     flow.drain()
-    assert "Produto B" in flow.sent[-1][1]
+    assert "Camiseta Produto B" in flow.sent[-1][1]
     assert "R$ 79,00" in flow.sent[-1][1]
 
-    flow.receive("Tem outra parecida?")
+    flow.receive("Tem outro parecido?")
     flow.drain()
     assert conversation.status == "AI"
-    assert conversation.context["conversation_v2"]["focus"]["selected_product_id"] == "prod-002"
+    similar = conversation.context["conversation_v2"]["focus"]
+    assert "prod-002" not in similar["product_ids"]
+    assert similar["selected_product_id"] is None
 
 
 def test_context_history_is_limited_to_twelve_messages_in_current_cycle(db, flow):
@@ -113,6 +116,136 @@ def test_context_history_is_limited_to_twelve_messages_in_current_cycle(db, flow
     assert request.message == "mensagem 14"
     assert request.history[0].content == "mensagem 2"
     assert request.history[-1].content == "mensagem 13"
+
+
+def test_guided_discovery_refines_results_without_using_clarification(client, db, flow):
+    create_product(client, id="guided-a", title="Camiseta A", price=70)
+    create_product(client, id="guided-b", title="Camiseta B", price=75)
+    create_product(client, id="guided-c", title="Camiseta C", price=90)
+
+    flow.receive("Quero camiseta preta")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    assert "Qual tamanho" in flow.sent[-1][1]
+    assert "clarification" not in conversation.context["conversation_v2"]
+
+    flow.receive("M")
+    flow.drain()
+    assert len(conversation.context["conversation_v2"]["focus"]["product_ids"]) == 3
+
+    flow.receive("Até 80")
+    flow.drain()
+    presented = conversation.context["conversation_v2"]["focus"]["product_ids"]
+    assert set(presented) == {"guided-a", "guided-b"}
+    assert conversation.context["conversation_v2"]["preferences"]["max_price"] == 80.0
+
+    flow.receive("A segunda")
+    flow.drain()
+    selected = conversation.context["conversation_v2"]["focus"]["selected_product_id"]
+    assert selected == presented[1]
+
+    flow.receive("Quanto fica?")
+    flow.drain()
+    assert db.get(Produto, selected).title in flow.sent[-1][1]
+    assert conversation.status == "AI"
+
+
+def test_style_discovery_and_similar_product_replace_presented_list(client, db, flow):
+    create_product(client, id="goth-a", title="Camiseta Gotico A", price=69)
+    create_product(client, id="goth-b", title="Camiseta Gotico B", price=79)
+
+    flow.receive("Quero algo gótico")
+    flow.drain()
+    assert "Você procura camiseta" in flow.sent[-1][1]
+
+    flow.receive("Preto e M")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    presented = conversation.context["conversation_v2"]["focus"]["product_ids"]
+    assert set(presented) == {"goth-a", "goth-b"}
+
+    selected = presented[0]
+    flow.receive("Tem outra parecida com a primeira?")
+    flow.drain()
+    new_presented = conversation.context["conversation_v2"]["focus"]["product_ids"]
+
+    assert selected not in new_presented
+    assert new_presented == [next(product_id for product_id in presented if product_id != selected)]
+
+
+def test_no_results_suggests_one_relaxation_then_refines(client, db, flow):
+    create_product(client, id="budget-shirt", title="Camiseta Budget", price=70)
+
+    flow.receive("Quero camiseta preta M até 40")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+
+    assert "Não encontrei" in flow.sent[-1][1]
+    assert "limite de preço maior" in flow.sent[-1][1]
+    assert conversation.status == "AI"
+    assert conversation.handoff_reason is None
+    assert "clarification" not in conversation.context["conversation_v2"]
+
+    flow.receive("Pode ser até 70")
+    flow.drain()
+    assert "Camiseta Budget" in flow.sent[-1][1]
+    assert conversation.context["conversation_v2"]["preferences"]["max_price"] == 70.0
+
+
+def test_many_results_are_limited_and_current_list_replaces_old_one(client, db, flow):
+    for index in range(7):
+        create_product(client, id=f"many-{index}", title=f"Camiseta Many {index}", price=50 + index * 10)
+
+    flow.receive("Quero camiseta M")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    first_list = conversation.context["conversation_v2"]["focus"]["product_ids"]
+    assert len(first_list) == settings.CHAT_MAX_PRODUCTS == 5
+
+    flow.receive("Até 80")
+    flow.drain()
+    second_list = conversation.context["conversation_v2"]["focus"]["product_ids"]
+    assert len(second_list) == 4
+    assert second_list != first_list
+
+    flow.receive("A segunda")
+    flow.drain()
+    assert conversation.context["conversation_v2"]["focus"]["selected_product_id"] == second_list[1]
+
+
+def test_comparison_and_selected_product_requery_current_price_and_stock(client, db, flow):
+    create_product(client, id="compare-a", title="Camiseta Compare A", price=60)
+    create_product(client, id="compare-b", title="Camiseta Compare B", price=80)
+
+    flow.receive("Quero camiseta preta M até 100")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    presented = conversation.context["conversation_v2"]["focus"]["product_ids"]
+
+    flow.receive("Qual a diferença entre a primeira e a segunda?")
+    flow.drain()
+    assert "Comparei as opções" in flow.sent[-1][1]
+    assert "R$ 20,00 a menos" in flow.sent[-1][1]
+
+    selected = presented[0]
+    flow.receive("A primeira")
+    flow.drain()
+    product = db.get(Produto, selected)
+    product.price = 42
+    product.variants[0].quantity = 0
+    db.commit()
+
+    flow.receive("Quanto fica?")
+    flow.drain()
+    assert "R$ 42,00" in flow.sent[-1][1]
+
+    flow.receive("Está em promoção?")
+    flow.drain()
+    assert "Não está em promoção no momento" in flow.sent[-1][1]
+
+    flow.receive("Tem em M?")
+    flow.drain()
+    assert "Sem estoque disponível" in flow.sent[-1][1]
 
 
 def test_ambiguous_process_clarifies_once_without_handoff(db, flow):

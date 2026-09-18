@@ -31,6 +31,8 @@ STYLE_TERMS = {
     "gothic": "gotico",
     "streetwear": "streetwear",
     "punk": "punk",
+    "minimalista": "minimalista",
+    "estampa grande": "estampa grande",
     "discreto": "discreto",
     "discreta": "discreto",
 }
@@ -284,11 +286,35 @@ def _preferences_for_message(current, message):
         values.pop("max_price", None)
     if re.search(r"\b(qualquer cor|outras cores)\b", text):
         values.pop("color", None)
+    if re.search(r"\b(?:nao precisa ser|nao precisa de|sem preferencia de)\s+(?:da cor\s+)?(?:preto|preta|branco|branca|azul|vermelho|vermelha|roxo|roxa|rosa|cinza|verde|amarelo|amarela|laranja|bege|marrom)\b", text):
+        values.pop("color", None)
     if re.search(r"\b(qualquer tamanho|outros tamanhos)\b", text):
         values.pop("size", None)
     if re.search(r"\b(sem oferta|fora da oferta|sem promocao)\b", text):
         values.pop("offer_only", None)
     return ConversationPreferences.model_validate(values)
+
+
+def _discovery_question(preferences, message):
+    """Ask one useful commercial question without consuming clarification attempts."""
+    text = normalize(message)
+    discovery_intent = wants_products(text) or bool(re.search(
+        r"\b(?:quero|procuro|busco|gostaria de)\b.*\b(?:algo|roupa|peca|modelo|"
+        + "|".join(STYLE_TERMS) + r")\b", text
+    ))
+    if not discovery_intent:
+        return None
+    if not preferences.garment:
+        return "Claro 🖤 Você procura camiseta, cropped, calça, saia ou outro tipo de peça?"
+    discriminators = (
+        preferences.style_query, preferences.size, preferences.color,
+        preferences.max_price, preferences.product_type, preferences.offer_only,
+    )
+    if not any(value is not None for value in discriminators):
+        return "Claro 🖤 Qual tamanho, cor ou estilo você procura?"
+    if not preferences.size and (preferences.style_query or preferences.color):
+        return "Perfeito 🖤 Qual tamanho você procura?"
+    return None
 
 
 def _focus_for_message(current, message):
@@ -306,7 +332,7 @@ def _focus_for_message(current, message):
                 return current.model_copy(update={"selected_product_id": ids[index]}), False
             return current, True
     contextual_reference = bool(re.search(
-        r"\b(?:essa|esse|esta|este|aquela|aquele|ela|ele)\b|\boutra\s+(?:parecida|semelhante)\b|"
+        r"\b(?:essa|esse|esta|este|aquela|aquele|ela|ele)\b|\b(?:outra|outro)\s+(?:parecida|parecido|semelhante)\b|"
         r"\ba\s+(?:pp|xxg|xg|gg|p|m|g|3[4-9]|[45][0-9]|60)\b", text
     ))
     if not contextual_reference:
@@ -539,11 +565,11 @@ def decide(db, incoming):
             context_patch=context_patch,
         )
         return _advance_clarification(decision, pending)
-    if (preferences.garment and preferences.style_query and not preferences.size
-            and wants_products(normalize(incoming.message))):
+    discovery_question = _discovery_question(preferences, incoming.message)
+    if discovery_question:
         decision = WhatsAppDecision(
             action=DecisionAction.ANSWER,
-            response=AgentResponse(message="Qual tamanho você procura?"),
+            response=AgentResponse(message=discovery_question),
             reason_code="PREFERENCE_SLOT_REQUESTED",
             context_patch=context_patch,
         )

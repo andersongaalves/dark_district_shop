@@ -1,10 +1,10 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `8150d3a309dc6b2f4f51e6ee9d4be5618832a06e`
+Last verified against commit: `fa8f104a95726939c207c60225145a8403d9d91b`
 
 Conversational V2:
-[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2C estão
-implementadas; F2D–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2D estão
+implementadas; F2E–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
 implementado.
 
 ## Seleção do fluxo
@@ -194,6 +194,36 @@ o ID para as tools e reconsulta o catálogo antes de responder. Foco e preferên
 preservados em handoff para ajudar o atendente, mas todo o bloco é limpo quando uma
 conversa `CLOSED` inicia novo ciclo. As chaves raiz `filters` e `product_ids` continuam
 como espelhos controlados para compatibilidade com F2A/F2B e com o agente compartilhado.
+
+## Descoberta guiada de produtos
+
+F2D usa `preferences` e `focus` da F2C para conduzir a busca sem criar outro estado. Uma
+intenção ampla compreendida recebe uma pergunta comercial curta com decisão `ANSWER`:
+“Quero camiseta” pergunta tamanho/cor/estilo; “Quero algo gótico” pergunta o tipo de peça.
+Essas perguntas não criam nem incrementam `clarification`, que continua reservado para
+intenção ou referência realmente incompreensível.
+
+Os filtros suportados são `garment`, busca textual de estilo, tamanho, cor, preço máximo,
+tipo de produto e oferta. Filtros explícitos suficientes consultam o catálogo sem nova
+pergunta; respostas curtas como “M”, “até 80” e “pode ser G” refinam a mesma busca.
+“Não precisa ser preta”, “outras cores”, “outros tamanhos” e “sem limite” removem o filtro
+correspondente quando a intenção é clara.
+
+Resultados usam somente produtos reais das tools, são numerados e limitados por
+`CHAT_MAX_PRODUCTS` (5 por padrão). A ordem dos IDs apresentada substitui a lista anterior,
+portanto “a segunda” sempre se refere ao resultado atual. Se não houver resultado, a IA
+permanece em `AI`, informa a ausência e sugere relaxar somente um filtro; não usa
+`LOW_CONFIDENCE` nem handoff para ausência de catálogo.
+
+Comparações reconsultam as opções indicadas e descrevem apenas preço, estoque, variantes,
+tipo ou outros dados cadastrados. Uma busca por peça parecida exclui o produto selecionado
+e reaplica as preferências atuais. Consultas posteriores de preço, promoção, tamanho, cor,
+material e estoque usam `selected_product_id` apenas como referência e leem novamente o
+catálogo; valores voláteis nunca vêm do histórico.
+
+A descoberta termina antes do fechamento. “Quero comprar”, “vou levar”, reserva, PIX ou
+pagamento continuam interceptados pelas regras de hard handoff antes do planejador. Nenhuma
+tool de pedido, pagamento, reserva, desconto ou escrita de estoque existe no registry.
 
 ## Notificação do atendente
 

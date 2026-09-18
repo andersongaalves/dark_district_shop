@@ -136,6 +136,27 @@ def _remembered_filters(incoming):
         return {}
 
 
+def _comparison_product_ids(text, product_ids):
+    if not re.search(r"\b(diferenca|compare|comparar|comparacao)\b", text):
+        return []
+    positions = {
+        "primeira": 0, "primeiro": 0,
+        "segunda": 1, "segundo": 1,
+        "terceira": 2, "terceiro": 2,
+        "ultima": len(product_ids) - 1, "ultimo": len(product_ids) - 1,
+    }
+    selected = []
+    for match in re.finditer(r"\b(primeira|primeiro|segunda|segundo|terceira|terceiro|ultima|ultimo)\b", text):
+        index = positions[match.group(1)]
+        if 0 <= index < len(product_ids) and product_ids[index] not in selected:
+            selected.append(product_ids[index])
+    return selected if len(selected) >= 2 else []
+
+
+def _similar_request(text):
+    return bool(re.search(r"\b(?:outra|outro)\s+(?:parecida|parecido|semelhante)\b", text))
+
+
 def _local_plan(incoming, text):
     """A deliberately small, transparent catalog parser when no LLM is enabled."""
     filters = _remembered_filters(incoming)
@@ -168,7 +189,10 @@ def _local_plan(incoming, text):
             filters["product_type"] = product_type
     if re.search(r"\b(sem limite|qualquer preco)\b", text):
         filters.pop("max_price", None)
-    if re.search(r"\b(qualquer cor|outras cores)\b", text):
+    if re.search(r"\b(qualquer cor|outras cores)\b", text) or re.search(
+        r"\b(?:nao precisa ser|nao precisa de|sem preferencia de)\s+(?:da cor\s+)?(?:preto|preta|branco|branca|azul|vermelho|vermelha|roxo|roxa|rosa|cinza|verde|amarelo|amarela|laranja|bege|marrom)\b",
+        text,
+    ):
         filters.pop("color", None)
     if re.search(r"\b(qualquer tamanho|outros tamanhos)\b", text):
         filters.pop("size", None)
@@ -180,10 +204,14 @@ def _local_plan(incoming, text):
         selected_product_id = None
     explicit = re.search(r"\b[a-z]{1,12}-(?:\d{1,8}-?){1,3}\b", incoming.message, re.IGNORECASE)
     product_id = explicit.group(0).rstrip("-") if explicit else None
-    reference = re.search(r"\b(essa|esse|esta|este|aquela|aquele|ela|ele|primeira|primeiro|segunda|segundo|terceira|terceiro|ultima|ultimo)\b|\boutra\s+(?:parecida|semelhante)\b", text)
+    comparison_ids = _comparison_product_ids(text, product_ids if isinstance(product_ids, list) else [])
+    if comparison_ids:
+        return [ToolCall("consultar_estoque", {"product_id": value}) for value in comparison_ids]
+    reference = re.search(r"\b(essa|esse|esta|este|aquela|aquele|ela|ele|primeira|primeiro|segunda|segundo|terceira|terceiro|ultima|ultimo)\b|\b(?:outra|outro)\s+(?:parecida|parecido|semelhante)\b", text)
+    promotion_request = bool(re.search(r"\b(?:esta|ta|fica)\s+(?:em\s+)?(?:promocao|oferta)\b|\bpreco promocional\b", text))
     fact_request = bool(color or size or re.search(
         r"\b(preco|valor|estoque|disponivel|cores|tamanhos|material|tecido|medidas|descricao|detalhes)\b|quanto (?:custa|fica)", text
-    ))
+    ) or promotion_request)
     if not product_id and isinstance(product_ids, list) and product_ids:
         if reference and (not piece or _remembered_filters(incoming).get("garment") == piece):
             if re.search(r"\b(?:ultima|ultimo)\b", text):
@@ -197,7 +225,7 @@ def _local_plan(incoming, text):
         elif not piece and fact_request:
             product_id = selected_product_id or (product_ids[0] if len(product_ids) == 1 else None)
     if product_id:
-        if re.search(r"\b(preco|valor)\b|quanto (?:custa|fica)", text) and not color and not size:
+        if (re.search(r"\b(preco|valor)\b|quanto (?:custa|fica)", text) or promotion_request) and not color and not size:
             return [ToolCall("consultar_preco", {"product_id": product_id})]
         return [ToolCall("consultar_estoque", {"product_id": product_id,
                          **{key: value for key, value in filters.items() if key in {"size", "color"}}})]
@@ -230,7 +258,34 @@ def _currency(price):
     return "R$ " + f"{price:.2f}".replace(".", ",")
 
 
-def _product_fact(product, filters, *, details=False):
+def _no_results_follow_up(filters):
+    if filters.get("max_price") is not None:
+        return "Posso procurar com um limite de preço maior?", _suggest("Sem limite de preço", "Sem limite de preço")
+    if filters.get("color"):
+        return "Posso mostrar opções de outra cor?", _suggest("Outras cores", "Mostre outras cores")
+    if filters.get("size"):
+        return "Posso verificar outros tamanhos?", _suggest("Outros tamanhos", "Mostre outros tamanhos")
+    if filters.get("query"):
+        return "Posso procurar sem esse estilo específico?", _suggest("Ver outras peças", "Mostre outras peças")
+    return "Quer tentar outro tipo de peça?", _suggest("Ver outras peças", "Mostre outras peças")
+
+
+def _comparison_response(products, facts, context):
+    message = "Comparei as opções com os dados atuais do catálogo:"
+    for index, fact in enumerate(facts, 1):
+        message += f"\n\n{index}. {fact}"
+    first, second = products[:2]
+    if first.effective_price != second.effective_price:
+        cheaper = "primeira" if first.effective_price < second.effective_price else "segunda"
+        difference = abs(first.effective_price - second.effective_price)
+        message += f"\n\nA {cheaper} custa {_currency(difference)} a menos."
+    elif first.product_type != second.product_type:
+        message += f"\n\nA primeira é da seção {first.product_type}; a segunda, da seção {second.product_type}."
+    return AgentResponse(type="product_results", message=message, products=products, context=context,
+        actions=[_suggest("Ver outras peças", "Mostre outras peças"), ChatAction(label="Falar com a equipe")])
+
+
+def _product_fact(product, filters, *, details=False, promotion=False):
     price = _currency(product.effective_price)
     if product.offer_active and product.effective_price < product.price:
         price += f" (original {_currency(product.price)})"
@@ -256,6 +311,8 @@ def _product_fact(product, filters, *, details=False):
                 if len(available) > 8:
                     stock += "; demais variantes na página da peça"
     fact = f"{product.title} — {price}. {stock}"
+    if promotion:
+        fact += " Está em promoção." if product.offer_active and product.effective_price < product.price else " Não está em promoção no momento."
     if details:
         description = html.unescape(re.sub(r"<[^>]*>", " ", product.description or ""))
         description = re.sub(r"\s+", " ", description).strip()
@@ -326,6 +383,10 @@ def _respond(db: Session, incoming: AgentInput, *, confirmed=False) -> AgentResp
     products, product_ids, seen_calls = [], set(), set()
     filters = _remembered_filters(incoming)
     facts, faq_answers = [], {item.id: item.answer for item in faqs}
+    comparison_requested = bool(_comparison_product_ids(
+        text, incoming.context.get("product_ids", []) if isinstance(incoming.context.get("product_ids"), list) else []
+    ))
+    similar_source_id = incoming.context.get("selected_product_id") if _similar_request(text) else None
     try:
         for call in calls:
             call_key = (call.name, json.dumps(call.arguments, sort_keys=True, ensure_ascii=False))
@@ -338,13 +399,21 @@ def _respond(db: Session, incoming: AgentInput, *, confirmed=False) -> AgentResp
             if result.faqs:
                 faq_answers.update((item.id, item.answer) for item in result.faqs)
                 continue
+            if similar_source_id and call.name == "consultar_estoque" and result.products:
+                source_product = result.products[0]
+                similar_filters = _remembered_filters(incoming)
+                if not similar_filters:
+                    similar_filters = {"category": source_product.category}
+                result = execute(db, "buscar_produto", similar_filters)
+                result.products = [product for product in result.products if product.id != similar_source_id]
             filters = result.filters
             for product in result.products:
                 if product.id not in product_ids and len(products) < settings.CHAT_MAX_PRODUCTS:
                     products.append(product)
                     product_ids.add(product.id)
                     facts.append(_product_fact(product, result.filters,
-                        details=bool(re.search(r"\b(material|tecido|medidas|descricao|detalhes|estampa|lavar|cuidados)\b", text))))
+                        details=bool(re.search(r"\b(material|tecido|medidas|descricao|detalhes|estampa|lavar|cuidados)\b", text)),
+                        promotion=bool(re.search(r"\b(?:esta|ta|fica)\s+(?:em\s+)?(?:promocao|oferta)\b|\bpreco promocional\b", text))))
     except SQLAlchemyError:
         db.rollback()
         logger.warning("agent_catalog_failed channel=%s conversation_id=%s", incoming.channel, incoming.conversation_id)
@@ -368,11 +437,13 @@ def _respond(db: Session, incoming: AgentInput, *, confirmed=False) -> AgentResp
         constraints.append(f"seção {section}")
     qualification = " com os filtros informados (" + ", ".join(constraints) + ")" if constraints else ""
     if not products:
-        message = f"Não encontrei {garment_label} disponíveis no catálogo agora{qualification}. Quer ver outras peças ou ajustar a busca?"
+        follow_up, action = _no_results_follow_up(filters)
+        message = f"Não encontrei {garment_label} disponíveis no catálogo agora{qualification}. {follow_up}"
         if faq_answers:
             message += "\n\n" + "\n\n".join(faq_answers.values())
-        return AgentResponse(message=message, context=context, actions=[_suggest("Ver outras peças", "Mostre outras peças"),
-            _suggest("Outras cores", "Mostre outras cores"), ChatAction(label="Falar com a equipe")])
+        return AgentResponse(message=message, context=context, actions=[action, ChatAction(label="Falar com a equipe")])
+    if comparison_requested and len(products) >= 2:
+        return _comparison_response(products, facts, context)
     # Only searches establish availability; lookups may describe a sold product.
     if requested:
         message = f"Sim, encontrei {garment_label} disponíveis no catálogo{qualification}. Veja as opções abaixo:"
@@ -380,12 +451,15 @@ def _respond(db: Session, incoming: AgentInput, *, confirmed=False) -> AgentResp
         message = "Encontrei estas informações no catálogo da DD:"
     if faq_answers:
         message += "\n\n" + "\n\n".join(faq_answers.values())
-    for fact in facts:
+    for index, fact in enumerate(facts, 1):
         if len(message) + len(fact) > 5700:
             message += "\nVeja as demais informações nos produtos abaixo."
             break
-        message += "\n" + fact
-    message += "\n\nQuer refinar por tamanho, cor ou faixa de preço? Também posso explicar como comprar."
+        message += f"\n\n{index}. {fact}"
+    if len(products) > 1:
+        message += "\n\nSe alguma te interessar, pode dizer ‘a segunda’, por exemplo."
+    else:
+        message += "\n\nQuer refinar por tamanho, cor ou faixa de preço? Também posso explicar como comprar."
     return AgentResponse(type="product_results", message=message, products=products, context=context,
         actions=[_suggest("Como comprar", "Como funciona a compra?"),
                  _suggest("Outras cores", "Mostre outras cores"), _suggest("Nova busca", "Começar de novo")])

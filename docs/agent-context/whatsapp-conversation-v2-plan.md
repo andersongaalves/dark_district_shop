@@ -1,6 +1,6 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: IN PROGRESS — F2A–F2C IMPLEMENTED; F2D–F2G PLANNED
+Status: IN PROGRESS — F2A–F2D IMPLEMENTED; F2E–F2G PLANNED
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
@@ -10,7 +10,9 @@ F2B implementation based on commit: `8d1c95cf586b53b2c92e8b303e6866d75de94000`
 
 F2C implementation based on commit: `8150d3a309dc6b2f4f51e6ee9d4be5618832a06e`
 
-Este documento especifica a evolução incremental. Somente F2A, F2B e F2C marcadas como
+F2D implementation based on commit: `fa8f104a95726939c207c60225145a8403d9d91b`
+
+Este documento especifica a evolução incremental. Somente F2A–F2D marcadas como
 `IMPLEMENTED` estão ativas; as demais seções continuam sendo desenho futuro até a fase
 de implementação, testes e publicação correspondente. O comportamento atual consolidado
 continua documentado em [whatsapp-ai.md](whatsapp-ai.md).
@@ -537,7 +539,7 @@ mais orientada, resolução de tópicos curtos, `LOW_CONFIDENCE` após esgotamen
 resolução, hard handoff, claim, close, retomada, mudança de modo e novo ciclo. O incremento
 é persistido com a resposta/outbox após revalidação de ownership, versão, modo e status.
 
-### F2C — Descoberta e referências de produto
+### F2C — Contexto multi-turn e referências de produto
 
 Status: IMPLEMENTED
 
@@ -557,7 +559,22 @@ resolvidos deterministicamente quando o foco é suficiente; caso contrário prod
 reconsultam as tools. Novo ciclo continua zerando todo o contexto; handoff preserva foco
 e preferências úteis para o atendente e limpa apenas o estado temporário previsto.
 
-### F2D — Saudação por modo e retomada
+### F2D — Descoberta conversacional de produtos
+
+Status: IMPLEMENTED
+
+Arquivos: `backend/services/ai_agent.py` e
+`backend/services/whatsapp_ai_service.py`.
+
+Resultado: perguntas comerciais de refinamento usam `ANSWER` e não consomem tentativas
+de `CLARIFY`. Consultas combinam as preferências F2C, apresentam no máximo
+`CHAT_MAX_PRODUCTS`, numeram opções e substituem a lista de foco a cada nova busca. Zero
+resultado mantém a conversa ativa e sugere relaxar um filtro por vez. Ordinais permitem
+seleção e comparação factual; “outra parecida” exclui o produto em foco e reaplica os
+filtros atuais. Preço, oferta, estoque e variantes são sempre reconsultados. Intenção de
+compra/pagamento continua seguindo hard handoff antes da descoberta.
+
+### F2E — Saudação por modo e retomada
 
 Status: PLANNED
 
@@ -568,25 +585,17 @@ Responsabilidade: greeting kind, AI_ACTIVATED, AI_RESUMED, reset seletivo e chav
 Risco: ordem incorreta, saudação dupla ou mensagem após mudança de estado. Testes:
 integração, races, restart, CLOSED e clique duplicado.
 
-### F2E — Observabilidade e contrato da inbox
+### F2F — Observabilidade e interface da inbox
 
 Status: PLANNED
 
-Arquivos prováveis: `whatsapp_inbox_service.py`, `routers/atendimento_admin.py` e schemas
-administrativos existentes.
-
-Responsabilidade: metadados/eventos mínimos e campos derivados na resposta. Risco:
-exposição de texto/PII ou consultas N+1. Testes: auth, no-store, serialização e paginação.
-
-### F2F — Interface administrativa
-
-Status: PLANNED
-
-Arquivos prováveis: `frontend/admin/atendimento/atendimento.js`, `.css` e
+Arquivos prováveis: `whatsapp_inbox_service.py`, `routers/atendimento_admin.py`, schemas
+administrativos, `frontend/admin/atendimento/atendimento.js`, `.css` e
 `tests/frontend/inbox.test.mjs`.
 
-Responsabilidade: exibir decisão/tentativas/timeline e UX idempotente de retomada. Risco:
-estado de polling atrasado e regressão mobile. Testes: frontend + visual desktop/mobile.
+Responsabilidade: metadados/eventos mínimos, campos derivados, decisão/tentativas na UI e
+UX idempotente de retomada. Risco: exposição de texto/PII, consultas N+1, polling atrasado
+e regressão mobile. Testes: auth, serialização, frontend e visual desktop/mobile.
 
 ### F2G — Integração, documentação e rollout
 

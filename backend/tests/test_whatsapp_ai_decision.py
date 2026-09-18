@@ -245,6 +245,37 @@ def test_preferences_are_allowlisted_and_updated_across_turns(db):
     assert context["conversation_v2"]["preferences"]["color"] == "preto"
 
 
+@pytest.mark.parametrize(("message", "expected", "preferences"), [
+    ("Quero camiseta", "Qual tamanho, cor ou estilo", {"garment": "camiseta"}),
+    ("Quero algo gótico", "Você procura camiseta", {"style_query": "gotico"}),
+])
+def test_discovery_questions_are_answers_not_clarification(db, message, expected, preferences):
+    decision = ai.decide(db, incoming(message))
+    context = ai.context_after_decision({}, decision, "message-1")
+
+    assert decision.action == ai.DecisionAction.ANSWER
+    assert decision.reason_code == "PREFERENCE_SLOT_REQUESTED"
+    assert expected in decision.response.message
+    assert "clarification" not in context["conversation_v2"]
+    assert context["conversation_v2"]["preferences"] == preferences
+
+
+def test_explicit_filters_skip_discovery_question_and_color_can_be_relaxed(db):
+    first = ai.decide(db, incoming("Quero camiseta preta M até 80"))
+    context = ai.context_after_decision({}, first, "message-1")
+
+    assert first.action == ai.DecisionAction.ANSWER
+    assert first.reason_code == "SUPPORTED_RESPONSE"
+    assert context["conversation_v2"]["preferences"]["color"] == "preto"
+
+    relaxed = ai.decide(db, incoming("Não precisa ser preta", context))
+    context = ai.context_after_decision(context, relaxed, "message-2")
+
+    assert relaxed.action == ai.DecisionAction.ANSWER
+    assert "color" not in context["conversation_v2"]["preferences"]
+    assert "clarification" not in context["conversation_v2"]
+
+
 def test_product_ordinals_update_focus_deterministically(db, monkeypatch):
     seen = []
 
