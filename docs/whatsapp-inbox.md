@@ -1,5 +1,8 @@
 # Inbox de WhatsApp no admin
 
+> Documento histórico da primeira entrega da inbox. Para o painel com `ai_state`, ações e
+> polling atuais, use [docs/agent-context/admin.md](agent-context/admin.md).
+
 O [modo híbrido opcional](whatsapp-hybrid.md) amplia esta inbox com AUTO/ASSIST/OFF.
 Com ele ativado, cada reabertura após CLOSED inicia um novo ciclo e repete a saudação
 uma vez. O restante deste guia descreve o modo humano legado e o envio manual comum.

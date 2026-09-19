@@ -1,6 +1,6 @@
 # Testes e validação
 
-Last verified against commit: `7ca1baf1cc64a488d1c9b2e3a25eb23d93713242`
+Last verified against commit: `215910f2eb29c90a3fd8d2456d292fb470ae8a05`
 
 ## Ambientes
 
@@ -80,3 +80,19 @@ Antes de rollout, execute também `test_migrations.py`, `python -m alembic heads
 frontend. Os testes PostgreSQL de concorrência continuam opcionais e exigem explicitamente
 `TEST_POSTGRES_URL` dedicado; ausência dessa variável deve resultar em skip, nunca uso do
 banco de produção.
+
+## V2 e F6: seleção por mudança
+
+- Decisão F2A, clarification F2B, contexto F2C e descoberta F2D: execute
+  `test_whatsapp_ai_decision.py` e `test_whatsapp_hybrid.py`.
+- Saudação/retomada F2E e rollout F2G: inclua `test_whatsapp.py` e `test_worker.py`.
+- Inbox F2F: execute `test_whatsapp_inbox.py` e `tests/frontend/inbox.test.mjs`.
+- Worker/consumer ou delivery: inclua `test_whatsapp.py`, `test_worker.py` e, com banco
+  dedicado, `test_delivery_postgres.py`.
+- Qualquer mudança compartilhada com o agente exige `test_webchat.py` e
+  `tests/frontend/chat.test.mjs`.
+
+F6 validou a matriz de modos/status, handoffs antes do LLM, prompt injection, ciclos,
+duplicatas Meta, leases/retries, falhas LLM/Meta/tools, inbox e independência do Web Chat.
+O hard handoff informal “fecha pra mim” possui teste de regressão. Depois de alterar o
+WhatsApp, rode primeiro os testes focados acima e depois a regressão correspondente.

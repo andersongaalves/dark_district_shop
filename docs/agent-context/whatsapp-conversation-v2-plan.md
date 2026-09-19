@@ -1,6 +1,6 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: IMPLEMENTED — F2A–F2G
+Status: IMPLEMENTED — F2A–F2G; F6 VALIDATED
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
@@ -628,7 +628,7 @@ ciclo; F2A–F2G ficam implementadas.
 
 ### F6 — Regressão, stress e testes adversariais
 
-Status: COMPLETED
+Status: VALIDATED
 
 Validação executada sobre o commit `ceb9da1dcddfb75b3d76999cfc49b6add9420a0b`.
 Foram exercitados state machine, handoffs naturais e adversariais, injeção durante
@@ -636,6 +636,9 @@ clarification, ciclos, idempotência, leases, retries, falhas de provider/Meta, 
 flags, worker e independência do Web Chat. A cobertura identificou que “fecha pra mim”
 não era classificado como `PURCHASE_INTENT`; a regra determinística recebeu essa variação
 e um teste de regressão. Não houve mudança de schema, capability ou arquitetura.
+
+Próxima fase planejada: **F8 — SEO + Google indexing**. Ela não faz parte da IA
+conversacional e não foi iniciada nesta fase.
 
 ## 22. Eventos operacionais mínimos
 

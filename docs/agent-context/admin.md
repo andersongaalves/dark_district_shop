@@ -1,6 +1,6 @@
 # Painel administrativo e inbox
 
-Last verified against commit: `e42dadafba54a4d4833b886f0ad66e75af2e8fe8`
+Last verified against commit: `215910f2eb29c90a3fd8d2456d292fb470ae8a05`
 
 ## Entrada e autenticação
 

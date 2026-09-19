@@ -1,5 +1,9 @@
 # WhatsApp humano no Render — somente Web Service
 
+> Documento histórico do modo humano legado. Para a configuração atual do consumer
+> embutido e do worker híbrido opcional, use
+> [docs/agent-context/deployment.md](agent-context/deployment.md).
+
 Para ativar AUTO/ASSIST, siga [o guia híbrido](whatsapp-hybrid.md). Este guia descreve
 o modo legado (`AI_WHATSAPP_ENABLED=false`); no híbrido a fila pode ser consumida
 pelo próprio Web Service, sem um Background Worker pago obrigatório.

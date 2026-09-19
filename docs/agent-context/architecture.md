@@ -1,6 +1,6 @@
 # Arquitetura do projeto
 
-Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
+Last verified against commit: `215910f2eb29c90a3fd8d2456d292fb470ae8a05`
 
 ## Visão geral
 
@@ -19,7 +19,8 @@ Browser
                                  v
                              PostgreSQL
 
-Meta WhatsApp -> webhook HMAC -> persistência/DeliveryJob -> consumer -> Meta
+Meta WhatsApp -> webhook HMAC -> persistência -> DeliveryJob -> consumer ->
+decision layer -> AI ou handoff -> WhatsApp Cloud API
 ```
 
 ## Stack e entrypoints
@@ -30,7 +31,8 @@ Meta WhatsApp -> webhook HMAC -> persistência/DeliveryJob -> consumer -> Meta
 - Backend: `backend/main.py`, executado como `uvicorn main:app` a partir de `backend/`.
 - Configuração: `backend/core/config.py`, com ambiente acima de `backend/.env`.
 - Banco: `backend/database.py`; schema por `backend/alembic/versions/`.
-- Worker opcional: `backend/worker.py`; consumer embutido no lifespan da API.
+- WhatsApp V2: `backend/services/whatsapp_hybrid_service.py`; consumer embutido no
+  lifespan da API ou worker externo opcional em `backend/worker.py --hybrid`.
 
 ## Backend
 
@@ -91,8 +93,12 @@ gera a mensagem; não há model de pedido ou pagamento.
 ## Web Chat, WhatsApp e admin
 
 O Web Chat chama `conversation_service.receive`, que persiste a entrada, libera a conexão
-antes do LLM, usa `ai_agent` e finaliza sob lock/versionamento. O WhatsApp tem uma camada
-híbrida opcional detalhada em [whatsapp-ai.md](whatsapp-ai.md).
+antes do LLM, usa `ai_agent` e finaliza sob lock/versionamento. O WhatsApp V2 valida o
+webhook, persiste `Customer`, `ChannelIdentity`, `Conversation`, `Message` e
+`DeliveryJob`, e deixa o consumer decidir entre resposta automática e handoff. A mesma
+fila usa PostgreSQL para leases/ownership e pode ser consumida pelo lifespan ou pelo worker
+externo. O fluxo humano continua disponível quando a IA do WhatsApp está desligada.
+Detalhes estão em [whatsapp-ai.md](whatsapp-ai.md).
 
 O admin protege todas as rotas com JWT. A inbox lista/pagina conversas WhatsApp, carrega
 histórico, assume, encerra, envia mensagens humanas, altera modo e pede sugestões.

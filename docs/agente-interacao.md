@@ -1,5 +1,8 @@
 # Conversa e sugestões de escrita
 
+> Documento histórico de uma entrega do Web Chat. Para o comportamento operacional atual
+> do WhatsApp V2, use [docs/agent-context/whatsapp-ai.md](agent-context/whatsapp-ai.md).
+
 O agente do Web Chat do site oferece diálogos sem depender de
 um modelo externo. O provider configurado continua disponível para planejar buscas
 mais complexas; preços, estoque, descrições e políticas vêm do cadastro da loja.

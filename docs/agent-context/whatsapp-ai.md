@@ -1,10 +1,10 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `7ca1baf1cc64a488d1c9b2e3a25eb23d93713242`
+Last verified against commit: `215910f2eb29c90a3fd8d2456d292fb470ae8a05`
 
 Conversational V2:
 [whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2G estão
-implementadas.
+implementadas e F6 validou regressões e cenários adversariais.
 
 ## Seleção do fluxo
 
@@ -119,6 +119,10 @@ sem ciclo entram somente no ciclo 1. Respostas humanas novas registram o ciclo.
 Compra/reserva envia texto de transição para finalizar com atendente. Os demais casos
 sensíveis também pausam a IA. Handoff grava `WAITING_HUMAN`, razão, nova versão e uma
 chave de evento; mensagens posteriores não repetem transição ou notificação.
+
+Intenções naturais de fechamento, inclusive “fecha pra mim”, são `PURCHASE_INTENT` e
+vencem clarification, contexto e LLM. A regra representa a intenção de concluir compra,
+não uma dependência dessa frase específica.
 
 Ambiguidade simples produz `CLARIFY` e mantém a conversa em `AI`; o consumer não infere
 `LOW_CONFIDENCE` por prefixo da mensagem. A IA pode enviar no máximo duas perguntas de

@@ -1,6 +1,6 @@
 # Deploy e configuração
 
-Last verified against commit: `7ca1baf1cc64a488d1c9b2e3a25eb23d93713242`
+Last verified against commit: `215910f2eb29c90a3fd8d2456d292fb470ae8a05`
 
 Este arquivo documenta nomes e finalidade das variáveis, nunca valores. Credenciais e
 dados pessoais pertencem ao gerenciador de ambiente, não ao Git, frontend ou logs.

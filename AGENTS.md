@@ -61,6 +61,8 @@ Detalhes e caminhos estão em [arquitetura](docs/agent-context/architecture.md).
 
 Os documentos funcionais em `docs/` continuam úteis para detalhes de uma entrega.
 Use `docs/agent-context/` como índice inicial e siga os links ali indicados.
+`AGENTS.md` é o mapa curto, `docs/agent-context/` é a documentação operacional atual e
+guias legados em `docs/` são referência histórica quando identificados como tal.
 
 ## Efficient context loading
 

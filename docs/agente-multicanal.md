@@ -1,5 +1,9 @@
 # Atendimento Dark District: IA no site, humano no WhatsApp
 
+> Documento histórico do fluxo humano legado. A fonte operacional atual do WhatsApp V2 é
+> [docs/agent-context/whatsapp-ai.md](agent-context/whatsapp-ai.md), com deploy em
+> [docs/agent-context/deployment.md](agent-context/deployment.md).
+
 > Este documento descreve o fluxo legado selecionado por
 > `AI_WHATSAPP_ENABLED=false`. Para o comportamento atual opcional com AUTO, ASSIST,
 > OFF, ciclos e DeliveryJob, leia [o guia híbrido](whatsapp-hybrid.md). O código e esse

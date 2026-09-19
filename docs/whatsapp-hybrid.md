@@ -1,5 +1,8 @@
 # Atendimento híbrido de WhatsApp
 
+> Documento histórico da implementação híbrida. A fonte operacional atual para IA,
+> estados, rollout e testes é [docs/agent-context/whatsapp-ai.md](agent-context/whatsapp-ai.md).
+
 ## Arquitetura e permissões
 
 `Meta → webhook HMAC → Message/Conversation + DeliveryJob no PostgreSQL → consumidor → agente existente → outbox → Cloud API`.

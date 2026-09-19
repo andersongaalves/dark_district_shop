@@ -1,6 +1,6 @@
 # Modelo de dados
 
-Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
+Last verified against commit: `215910f2eb29c90a3fd8d2456d292fb470ae8a05`
 
 Last verified Alembic head: `e16a345c8f75`
 
@@ -37,6 +37,13 @@ Campos operacionais:
 
 Modo e status são independentes. O banco aplica CHECKs e `identity_id` evita conversas
 paralelas para a mesma identidade.
+
+`context` não é um perfil permanente. No WhatsApp V2, seu bloco versionado
+`conversation_v2` guarda somente estado operacional do ciclo: `clarification` (até duas
+tentativas), `focus` (IDs apresentados e seleção), `preferences` allowlisted e
+`last_decision`. Produtos e fatos voláteis não são copiados para esse JSON: preço,
+oferta e estoque são reconsultados. O bloco é compatível com contexto legado, preservado
+em handoff quando útil ao humano e limpo quando um novo ciclo começa.
 
 ### Message
 

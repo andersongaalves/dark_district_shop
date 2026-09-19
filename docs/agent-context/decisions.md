@@ -1,6 +1,6 @@
 # Decisões arquiteturais
 
-Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
+Last verified against commit: `215910f2eb29c90a3fd8d2456d292fb470ae8a05`
 
 ## Frontend permanece vanilla
 
@@ -119,28 +119,49 @@ Decision: a IA conversacional V2 faz até duas perguntas orientadas antes de enc
 por baixa confiança. Handoffs claros continuam imediatos.
 
 Implications: `LOW_CONFIDENCE` significa incompreensão persistente neste fluxo. Falha
-técnica permanece `AI_FAILURE`; perguntas de descoberta com intenção já conhecida serão
-tratadas separadamente na fase de descoberta. Especificação em
+técnica permanece `AI_FAILURE`; perguntas de descoberta com intenção já conhecida usam
+`ANSWER` e não consomem clarification. Especificação em
 `docs/agent-context/whatsapp-conversation-v2-plan.md`.
 
 ## Estado conversacional V2 reutiliza o JSON existente
 
-Status: Partially Implemented
+Status: Implemented
 
-Decision: tentativas de esclarecimento e última decisão são persistidas em um bloco
-versionado e validado de `Conversation.context`. Foco de produto e preferências continuam
-planejados para a fase de descoberta.
+Decision: clarification, última decisão, foco de produto e preferências allowlisted são
+persistidos em um bloco versionado e validado de `Conversation.context`.
 
-Implications: a primeira implementação não requer colunas ou migration. Mensagens e
-DeliveryJobs existentes continuam sendo a fonte de histórico e idempotência; produtos
-são guardados apenas por ID e reconsultados antes de informar fatos.
+Implications: não requer colunas ou migration. Mensagens e DeliveryJobs existentes
+continuam sendo a fonte de histórico e idempotência; produtos são guardados apenas por ID
+e reconsultados antes de informar fatos.
 
 ## Ativação e retomada da IA são eventos distintos
 
-Status: Planned
+Status: Implemented
 
-Decision: ciclos AUTO usarão uma saudação automática própria; ASSIST/OFF usarão a saudação
-humana. Retomar IA produzirá uma mensagem diferente, somente em uma transição explícita.
+Decision: ciclos AUTO usam saudação automática própria; ASSIST/OFF usam a saudação humana.
+Retomar IA produz mensagem diferente, somente em uma transição explícita.
 
 Implications: saudação e retomada reutilizam Message/DeliveryJob com chaves por ciclo e
 versão, sem coluna `ai_intro_sent` ou tabela de eventos.
+
+## Handoff determinístico precede LLM
+
+Status: Implemented
+
+Decision: compra, pagamento, pedido, reclamação, troca/devolução, negociação, entrega e
+pedido de humano são classificados antes do agente. Linguagem natural de fechamento, como
+“fecha pra mim”, representa `PURCHASE_INTENT`.
+
+Implications: nenhum contexto, clarification ou instrução do cliente pode permitir que a
+IA conclua compra; a conversa passa a `WAITING_HUMAN` e o humano preserva o controle.
+
+## Rollout da IA WhatsApp é reversível por configuração
+
+Status: Implemented
+
+Decision: `AI_WHATSAPP_ENABLED=false` mantém webhook, persistência e inbox humanos. O
+consumer pode rodar embutido ou como `python -m worker --hybrid`; Web Chat não usa essa
+flag.
+
+Implications: o rollout segue OFF, ASSIST, AUTO manual e AUTO default. Rollback não exige
+migration nem exclui estado conversacional.
