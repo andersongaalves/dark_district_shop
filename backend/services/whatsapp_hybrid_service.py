@@ -24,9 +24,9 @@ def queue(db, c, key, purpose, payload, *, kind="outbound"):
     db.flush()
 
 
-def outbound(db, c, key, text, purpose, timestamp, products=None):
+def outbound(db, c, key, text, purpose, timestamp, products=None, metadata=None):
     message = Message(conversation_id=c.id, sender="assistant", external_id="hybrid:" + key,
-                      content=text, extra_data={"cycle": c.cycle, "delivery_status": "pending"})
+                      content=text, extra_data={"cycle": c.cycle, "delivery_status": "pending", **(metadata or {})})
     db.add(message)
     db.flush()
     queue(db, c, key, purpose, {"text": text, "timestamp": timestamp, "message_id": message.id,
@@ -89,7 +89,11 @@ def receive_messages(db, incoming_messages):
         db.execute(update(DeliveryJob).where(DeliveryJob.routing_key == incoming.external_identity,
             DeliveryJob.status == "pending", ~DeliveryJob.external_id.startswith("hybrid:")).values(status="cancelled", error_code="legacy_queue"))
         if first or reopened:
-            outbound(db, c, f"welcome:{c.id}:{c.cycle}", WELCOME_TEXT, "greeting", incoming.timestamp)
+            automatic = c.ai_mode == "AUTO"
+            outbound(db, c, f"welcome:{c.id}:{c.cycle}", ai.AUTO_WELCOME_TEXT if automatic else WELCOME_TEXT,
+                     "greeting", incoming.timestamp,
+                     metadata={"event": "AI_ACTIVATED" if automatic else "HUMAN_GREETING",
+                               "greeting_kind": "automatic" if automatic else "human"})
             if c.ai_mode != "AUTO":
                 handoff(db, c, "HUMAN_REQUESTED", source, transition=False)
         if c.status == "AI" and c.ai_mode == "AUTO":
@@ -151,7 +155,7 @@ def process_outbound(job, sessions):
         p = job.payload
         purpose = p["purpose"]
         valid = c and c.cycle == p["cycle"] and c.status != "CLOSED" and p["phone_number_id"] == settings.WHATSAPP_PHONE_NUMBER_ID
-        if purpose == "auto":
+        if purpose in {"auto", "resume"}:
             valid = valid and c.status == "AI" and c.ai_mode == "AUTO" and c.version == p["version"]
         if purpose in {"handoff", "notification"}:
             valid = valid and c.status == "WAITING_HUMAN" and c.handoff_reason == p.get("reason", c.handoff_reason)
@@ -179,8 +183,9 @@ def process_outbound(job, sessions):
         db.execute(update(DeliveryJob).where(*delivery._ownership(job)).values(status=status, locked_at=None,
             error_code=metadata.get("error_code"), payload={**p, **metadata}, updated_at=utc_now()))
         if p.get("message_id"):
-            db.execute(update(Message).where(Message.id == p["message_id"]).values(
-                extra_data={"cycle": p["cycle"], "delivery_status": status, **metadata}))
+            message = db.get(Message, p["message_id"])
+            if message:
+                message.extra_data = {**(message.extra_data or {}), "delivery_status": status, **metadata}
         db.commit()
 
 

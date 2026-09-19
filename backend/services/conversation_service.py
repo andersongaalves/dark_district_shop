@@ -156,9 +156,13 @@ def change_status(db: Session, conversation_id: str, status: str):
     conversation = db.scalar(select(Conversation).where(Conversation.id == conversation_id).with_for_update())
     if not conversation:
         raise SupportError("Conversa não encontrada.", 404)
-    if conversation.channel == "whatsapp" and status == "AI" and not (
-        settings.AI_WHATSAPP_ENABLED and conversation.ai_mode == "AUTO"):
-        raise SupportError("WhatsApp permanece em atendimento humano.", 409)
+    if conversation.channel == "whatsapp" and status == "AI":
+        if conversation.status == "CLOSED":
+            raise SupportError("Conversa encerrada não pode retomar a IA.", 409)
+        if not settings.AI_WHATSAPP_ENABLED:
+            raise SupportError("Ative AI_WHATSAPP_ENABLED no servidor primeiro.", 409)
+        if conversation.status == "AI" and conversation.ai_mode == "AUTO":
+            return {"conversation_id": conversation_id, "status": status}
     if conversation.channel == "web" and status == "CLOSED":
         raise SupportError("Use o encerramento da sessão web.", 409)
     if conversation.channel == "whatsapp":
@@ -172,7 +176,10 @@ def change_status(db: Session, conversation_id: str, status: str):
             handoff(db, conversation, "HUMAN_REQUESTED", source, transition=False)
             db.commit()
             return {"conversation_id": conversation_id, "status": status}
+    previous_status = conversation.status
     conversation.status = status
+    if conversation.channel == "whatsapp" and status == "AI":
+        conversation.ai_mode = "AUTO"
     if conversation.channel == "whatsapp" and status == "HUMAN" and conversation.ai_mode == "AUTO":
         conversation.ai_mode = "ASSIST"
     if conversation.channel == "whatsapp" and status != "WAITING_HUMAN":
@@ -185,6 +192,12 @@ def change_status(db: Session, conversation_id: str, status: str):
         db.execute(update(DeliveryJob).where(DeliveryJob.conversation_id == conversation_id,
             DeliveryJob.kind == "outbound", DeliveryJob.status == "pending").values(status="cancelled", error_code="human_handoff"))
     db.add(Message(conversation_id=conversation_id, sender="system", content=f"Atendimento: {status}."))
+    if conversation.channel == "whatsapp" and status == "AI" and previous_status != "AI":
+        from services.whatsapp_ai_service import AI_RESUMED_TEXT
+        from services.whatsapp_hybrid_service import outbound
+        outbound(db, conversation, f"resume:{conversation.id}:{conversation.cycle}:{conversation.version}",
+                 AI_RESUMED_TEXT, "resume", utc_now().timestamp(),
+                 metadata={"event": "AI_RESUMED"})
     db.commit()
     return {"conversation_id": conversation_id, "status": status}
 

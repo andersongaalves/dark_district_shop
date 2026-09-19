@@ -364,9 +364,49 @@ def test_resume_after_low_confidence_starts_without_clarification(db, flow):
     conversation = db.query(Conversation).one()
     assert conversation.handoff_reason == "LOW_CONFIDENCE"
 
+    focus = {"product_ids": ["product-1"], "selected_product_id": "product-1"}
+    v2 = {**conversation.context["conversation_v2"], "focus": focus}
+    conversation.context = {**conversation.context, "conversation_v2": v2}
+    db.commit()
+
+    before_version = conversation.version
     conversation_service.change_status(db, conversation.id, "AI")
     assert conversation.status == "AI"
+    assert conversation.ai_mode == "AUTO"
+    assert conversation.cycle == 1
+    assert conversation.version == before_version + 1
+    assert conversation.handoff_reason is None
     assert "clarification" not in conversation.context["conversation_v2"]
+    assert conversation.context["conversation_v2"]["focus"] == focus
+    resume = db.query(Message).filter_by(sender="assistant", content=ai.AI_RESUMED_TEXT).one()
+    assert resume.extra_data["event"] == "AI_RESUMED"
+    jobs = db.query(DeliveryJob).filter(DeliveryJob.external_id.like("hybrid:resume:%")).all()
+    assert len(jobs) == 1 and jobs[0].payload["version"] == conversation.version
+
+    conversation_service.change_status(db, conversation.id, "AI")
+    assert db.query(DeliveryJob).filter(DeliveryJob.external_id.like("hybrid:resume:%")).count() == 1
+    flow.drain()
+    assert sum(text == ai.AI_RESUMED_TEXT for _, text in flow.sent) == 1
+
+
+def test_resume_sets_auto_atomically_and_stale_job_does_not_send(client, db, flow):
+    flow.receive("Quero falar com uma pessoa")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    assert client.post(f"/admin/conversations/{conversation.id}/claim").status_code == 200
+    assert conversation.status == "HUMAN" and conversation.ai_mode == "ASSIST"
+
+    response = client.patch(f"/admin/conversations/{conversation.id}", json={"status": "AI"})
+    assert response.status_code == 200
+    db.refresh(conversation)
+    assert conversation.status == "AI" and conversation.ai_mode == "AUTO"
+    conversation_service.change_status(db, conversation.id, "HUMAN")
+    before = len(flow.sent)
+    flow.drain()
+    assert len(flow.sent) == before
+
+    conversation_service.change_status(db, conversation.id, "CLOSED")
+    assert client.patch(f"/admin/conversations/{conversation.id}", json={"status": "AI"}).status_code == 409
 
 
 def test_waiting_human_message_does_not_advance_clarification(db, flow):
@@ -488,7 +528,10 @@ def test_closed_new_cycle_welcome_and_reset(db, flow, mode, expected):
     assert c.context.get("pending_correction") != "old"
     assert "old-product" not in str(c.context)
     assert (c.context.get("conversation_v2", {}).get("preferences") or {}) == {}
-    assert sum(text == hybrid.WELCOME_TEXT for _, text in flow.sent[before:]) == 1
+    expected_text = ai.AUTO_WELCOME_TEXT if mode == "AUTO" else hybrid.WELCOME_TEXT
+    assert sum(text == expected_text for _, text in flow.sent[before:]) == 1
+    greeting = db.query(Message).filter_by(sender="assistant", content=expected_text).order_by(Message.created_at.desc()).first()
+    assert greeting.extra_data["greeting_kind"] == ("automatic" if mode == "AUTO" else "human")
 
 
 def test_claim_assist_off_and_suggestion_never_send(client, db, flow):

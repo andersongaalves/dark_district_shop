@@ -1,10 +1,10 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `fa8f104a95726939c207c60225145a8403d9d91b`
+Last verified against commit: `8c2e52445ac4cfacaca320d3a7986b64a216391e`
 
 Conversational V2:
-[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2D estão
-implementadas; F2E–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2E estão
+implementadas; F2F–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
 implementado.
 
 ## Seleção do fluxo
@@ -57,8 +57,10 @@ Modo e estado são dimensões diferentes:
 | `CLOSED` | ciclo encerrado; trabalho pendente é invalidado |
 
 Assumir uma conversa muda para `HUMAN` e converte `AUTO` em `ASSIST`; `OFF` permanece.
-Escolher `AUTO` não muda sozinho o status. “Retomar IA” usa o PATCH de status para `AI`
-e só funciona com modo `AUTO` e feature ativa.
+Escolher `AUTO` não muda sozinho o status. “Retomar IA” usa o PATCH de status para `AI`:
+sob lock, ativa `AUTO`, limpa esclarecimento e handoff, preserva foco/preferências e
+enfileira uma mensagem `AI_RESUMED`. Se já estiver em `AUTO` + `AI`, não repete a transição
+nem a mensagem; `CLOSED` rejeita a retomada.
 
 ## Entrada, idempotência e ciclo
 
@@ -67,9 +69,12 @@ de conversa, ID Meta e sender torna a mensagem idempotente. A conversa é bloque
 antes de testar duplicidade e mudar ciclo.
 
 Primeiro contato e reabertura enfileiram uma saudação identificada por conversa/ciclo.
-Se uma conversa `CLOSED` recebe evento novo, `cycle` incrementa, contexto, falhas e lease
-da geração anterior são limpos. `AUTO` reabre em `AI`; `ASSIST`/`OFF` reabrem aguardando
-humano. Repetição do mesmo evento não reabre nem duplica saudação.
+`AUTO` usa a saudação que identifica o atendimento automático e reabre em `AI`;
+`ASSIST`/`OFF` preservam a saudação humana e reabrem em `WAITING_HUMAN`. A saudação tem
+metadados `AI_ACTIVATED`/`HUMAN_GREETING` e é despachada pelo mesmo outbox da conversa,
+antes da resposta ao primeiro turno. Se uma conversa `CLOSED` recebe evento novo, `cycle`
+incrementa e contexto, falhas e lease da geração anterior são limpos. Repetição do mesmo
+evento não reabre nem duplica saudação.
 
 Histórico da IA é limitado ao ciclo atual e a `CHAT_HISTORY_MESSAGES`. Mensagens legadas
 sem ciclo entram somente no ciclo 1. Respostas humanas novas registram o ciclo.

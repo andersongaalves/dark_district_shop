@@ -19,6 +19,15 @@ from services.customer_service import SupportError
 logger = logging.getLogger(__name__)
 PURCHASE_TEXT = "Perfeito 🖤 Vou encaminhar você para um atendente da Dark District para finalizar sua compra. Em breve ele continua por aqui."
 HANDOFF_TEXT = "Vou encaminhar sua solicitação para um atendente da Dark District. O atendimento automático fica pausado enquanto você aguarda."
+AUTO_WELCOME_TEXT = (
+    "🖤 Olá! O atendimento automático da Dark District está ativo.\n\n"
+    "Posso ajudar com produtos, preços, tamanhos, disponibilidade e outras dúvidas.\n\n"
+    "Se quiser falar com um atendente humano, é só pedir."
+)
+AI_RESUMED_TEXT = (
+    "🖤 O atendimento automático foi retomado.\n\n"
+    "Se precisar falar com um atendente humano novamente, é só pedir."
+)
 MAX_CLARIFICATION_ATTEMPTS = 2
 WHATSAPP_CONTEXT_HISTORY_LIMIT = 12
 MAX_FOCUS_PRODUCTS = 10

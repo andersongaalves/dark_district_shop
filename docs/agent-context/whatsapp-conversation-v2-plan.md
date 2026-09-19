@@ -1,6 +1,6 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: IN PROGRESS — F2A–F2D IMPLEMENTED; F2E–F2G PLANNED
+Status: IN PROGRESS — F2A–F2E IMPLEMENTED; F2F–F2G PLANNED
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
@@ -12,7 +12,9 @@ F2C implementation based on commit: `8150d3a309dc6b2f4f51e6ee9d4be5618832a06e`
 
 F2D implementation based on commit: `fa8f104a95726939c207c60225145a8403d9d91b`
 
-Este documento especifica a evolução incremental. Somente F2A–F2D marcadas como
+F2E implementation based on commit: `8c2e52445ac4cfacaca320d3a7986b64a216391e`
+
+Este documento especifica a evolução incremental. Somente F2A–F2E marcadas como
 `IMPLEMENTED` estão ativas; as demais seções continuam sendo desenho futuro até a fase
 de implementação, testes e publicação correspondente. O comportamento atual consolidado
 continua documentado em [whatsapp-ai.md](whatsapp-ai.md).
@@ -576,14 +578,19 @@ compra/pagamento continua seguindo hard handoff antes da descoberta.
 
 ### F2E — Saudação por modo e retomada
 
-Status: PLANNED
+Status: IMPLEMENTED
 
-Arquivos prováveis: `whatsapp_hybrid_service.py`, `conversation_service.py`,
-`whatsapp_ai_service.py` e constantes de texto do fluxo WhatsApp.
+Arquivos: `backend/services/whatsapp_hybrid_service.py`,
+`backend/services/conversation_service.py` e `backend/services/whatsapp_ai_service.py`.
 
-Responsabilidade: greeting kind, AI_ACTIVATED, AI_RESUMED, reset seletivo e chaves únicas.
-Risco: ordem incorreta, saudação dupla ou mensagem após mudança de estado. Testes:
-integração, races, restart, CLOSED e clique duplicado.
+Resultado: primeiro contato e novo ciclo escolhem a saudação por `ai_mode`; `AUTO` informa
+que o atendimento é automático e `ASSIST`/`OFF` preservam a saudação humana. A chave
+continua baseada em conversa/ciclo e os metadados registram `AI_ACTIVATED` ou
+`HUMAN_GREETING`. “Retomar IA” agora é uma transição atômica sob lock: aplica `AUTO` +
+`AI`, limpa somente esclarecimento/handoff/falhas, preserva foco e preferências e enfileira
+uma mensagem `AI_RESUMED` com chave por conversa/ciclo/versão. Repetição em estado já
+ativo é no-op; `CLOSED` é rejeitado; o outbox cancela a retomada se modo, status, ciclo ou
+versão mudarem antes do envio.
 
 ### F2F — Observabilidade e interface da inbox
 
