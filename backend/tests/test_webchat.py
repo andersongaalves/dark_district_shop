@@ -37,6 +37,16 @@ def test_web_api_conversation_history_and_isolation(public_client):
     assert public_client.post("/api/chat/messages", headers=headers(two), json={"message_id": str(uuid4()), "message": "oi", "conversation_id": one["conversation_id"]}).status_code == 422
 
 
+def test_whatsapp_ai_flag_does_not_disable_web_chat(public_client, monkeypatch):
+    monkeypatch.setattr(settings, "AI_WHATSAPP_ENABLED", False)
+    visitor = session(public_client)
+    response = public_client.post("/api/chat/messages", headers=headers(visitor), json={
+        "message_id": str(uuid4()), "message": "Como funciona a entrega?"
+    })
+    assert response.status_code == 200
+    assert response.json()["conversation_id"] == visitor["conversation_id"]
+
+
 @pytest.mark.parametrize("credential", [None, "", "x" * 43, "x" * 5000, "admin-token"])
 def test_unknown_session_cannot_read_or_write(public_client, credential):
     auth = {"Authorization": f"Bearer {credential}"} if credential is not None else {}

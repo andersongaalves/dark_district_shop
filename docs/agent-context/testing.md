@@ -1,6 +1,6 @@
 # Testes e validação
 
-Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
+Last verified against commit: `7ca1baf1cc64a488d1c9b2e3a25eb23d93713242`
 
 ## Ambientes
 
@@ -66,3 +66,17 @@ PostgreSQL; isso não substitui homologação PostgreSQL antes de mudança arris
 
 Antes de commit, execute `git diff --check`, confira arquivos staged e faça busca por
 credenciais. Documentação pura não exige suíte completa salvo regra nova que afete código.
+
+## Integração e rollout WhatsApp V2
+
+F2G consolida a matriz em `test_worker.py`, `test_whatsapp.py`,
+`test_whatsapp_hybrid.py`, `test_whatsapp_inbox.py` e `test_webchat.py`. Os testes cobrem
+validação de flags, consumer embutido ligado/desligado, worker `--hybrid --once`, fallback
+humano sem LLM, falhas LLM/Meta, duplicatas, handoff, retomada, claim, ASSIST, CLOSED/novo
+ciclo e independência do Web Chat. O cenário E2E simulado percorre descoberta, foco,
+preço, intenção de compra, atendimento humano e reabertura sem APIs reais.
+
+Antes de rollout, execute também `test_migrations.py`, `python -m alembic heads` e a suíte
+frontend. Os testes PostgreSQL de concorrência continuam opcionais e exigem explicitamente
+`TEST_POSTGRES_URL` dedicado; ausência dessa variável deve resultar em skip, nunca uso do
+banco de produção.

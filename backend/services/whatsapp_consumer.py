@@ -22,9 +22,15 @@ def consume(stop):
 @asynccontextmanager
 async def lifespan(app):
     stop, thread = Event(), None
-    if settings.AI_WHATSAPP_ENABLED and settings.WHATSAPP_EMBEDDED_CONSUMER:
+    hybrid_enabled = settings.WHATSAPP_ENABLED and settings.AI_WHATSAPP_ENABLED
+    logger.info("whatsapp_ai_%s embedded_consumer=%s",
+                "enabled" if hybrid_enabled else "disabled", settings.WHATSAPP_EMBEDDED_CONSUMER)
+    if hybrid_enabled and settings.WHATSAPP_EMBEDDED_CONSUMER:
         thread = Thread(target=consume, args=(stop,), name="whatsapp-consumer", daemon=True)
         thread.start()
+        logger.info("embedded_consumer_started")
+    elif hybrid_enabled:
+        logger.info("embedded_consumer_disabled external_worker_required=true")
     try:
         yield
     finally:

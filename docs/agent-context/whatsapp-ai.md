@@ -1,11 +1,10 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `e42dadafba54a4d4833b886f0ad66e75af2e8fe8`
+Last verified against commit: `7ca1baf1cc64a488d1c9b2e3a25eb23d93713242`
 
 Conversational V2:
-[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2F estão
-implementadas; F2G permanece `PLANNED` e não descreve comportamento atualmente
-implementado.
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2G estão
+implementadas.
 
 ## Seleção do fluxo
 
@@ -38,6 +37,29 @@ Meta POST
 O webhook não espera LLM nem envio Meta. O lifespan em `whatsapp_consumer.py` inicia
 uma thread quando IA e consumer embutido estão ativos. Réplicas coordenam jobs por
 leases do PostgreSQL e `SKIP LOCKED`. `worker.py --hybrid` é alternativa separada.
+
+## Controles de rollout
+
+- `WHATSAPP_ENABLED=false` desliga o canal e faz verificação/webhook responderem 503.
+- `AI_WHATSAPP_ENABLED=false` mantém webhook, persistência, saudação e inbox humanos;
+  não chama LLM, não cria jobs híbridos e cancela jobs pendentes da identidade ao receber
+  nova mensagem. O Web Chat permanece independente.
+- `WHATSAPP_AI_DEFAULT_MODE` aceita somente `AUTO`, `ASSIST` ou `OFF`, com default `OFF`.
+  Valor inválido impede o startup com erro de configuração. O valor é aplicado somente no
+  primeiro contato; mudanças posteriores não sobrescrevem a escolha administrativa.
+- `WHATSAPP_EMBEDDED_CONSUMER=true` inicia uma thread por processo somente quando canal e
+  IA estão ativos. `false` mantém os jobs no PostgreSQL para `python -m worker --hybrid`.
+
+O bootstrap registra apenas estado booleano de ativação e ciclo de vida do consumer, sem
+tokens ou configuração sensível. Falha de uma iteração é isolada; shutdown sinaliza o
+consumer e aguarda de forma limitada. Jobs persistentes, leases, ownership e IDs externos
+permitem restart e múltiplas réplicas sem lock global. Outbound interrompido fica
+`uncertain`; inbound expirado volta a `pending` até o limite de tentativas.
+
+Rollout recomendado: manter default `OFF`, validar inbox e worker; usar `ASSIST` em
+conversas humanas; ativar `AUTO` manualmente em conversas de teste; por fim mudar o default
+para `AUTO`. Rollback operacional: definir `AI_WHATSAPP_ENABLED=false` e reiniciar/redeployar
+os processos. Não exige migration, exclusão de dados ou mudança no Web Chat.
 
 ## Modos e estados
 

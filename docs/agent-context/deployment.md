@@ -1,6 +1,6 @@
 # Deploy e configuração
 
-Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
+Last verified against commit: `7ca1baf1cc64a488d1c9b2e3a25eb23d93713242`
 
 Este arquivo documenta nomes e finalidade das variáveis, nunca valores. Credenciais e
 dados pessoais pertencem ao gerenciador de ambiente, não ao Git, frontend ou logs.
@@ -91,14 +91,47 @@ Admin inicial: `ADMIN_USERNAME` e `ADMIN_PASSWORD` são lidas apenas por
 
 ## Consumer e worker
 
-Com `AI_WHATSAPP_ENABLED` e `WHATSAPP_EMBEDDED_CONSUMER`, o lifespan do Web Service inicia
-o consumer. Não é obrigatório contratar worker. Se a instância suspender, mensagens/jobs
-continuam no PostgreSQL e serão processados na retomada, mas a resposta fica atrasada.
+Com `WHATSAPP_ENABLED=true`, `AI_WHATSAPP_ENABLED=true` e
+`WHATSAPP_EMBEDDED_CONSUMER=true`, o lifespan do Web Service inicia uma thread por processo.
+O startup não espera a fila; falhas de iteração são isoladas e o shutdown sinaliza e aguarda
+de forma limitada. Não é obrigatório contratar worker. Se a instância suspender,
+mensagens/jobs continuam no PostgreSQL e serão processados na retomada, mas a resposta fica
+atrasada.
 
 Para processo sempre ativo separado, desative o consumer embutido e execute, a partir de
 `backend/`, `python -m worker --hybrid` com o mesmo `DATABASE_URL` e variáveis Meta/LLM.
 Use `python -m worker --hybrid --once` para um job. `--purge-expired` é manutenção de
 retenção; não rode em paralelo por engano como start da API.
+
+Consumer embutido e worker externo podem coexistir porque cada job usa claim PostgreSQL,
+`SKIP LOCKED`, lease e ownership; a configuração operacional recomendada usa apenas um
+modelo para reduzir capacidade ociosa. Réplicas do Web Service podem ter uma thread cada.
+Não habilite worker externo com SQLite; produção usa o mesmo PostgreSQL da API.
+
+## Rollout e rollback da IA do WhatsApp
+
+| Estado | Configuração | Resultado |
+| --- | --- | --- |
+| Canal desligado | `WHATSAPP_ENABLED=false` | webhook indisponível (503) |
+| Humano somente | WhatsApp `true`, IA `false` | persiste mensagem, saudação humana, `WAITING_HUMAN`, inbox ativa |
+| Infra V2 segura | IA `true`, default `OFF` | V2 disponível, novas conversas sem participação da IA |
+| Copiloto | conversa em `HUMAN + ASSIST` | sugestão somente por clique, sem envio automático |
+| Automático | conversa/default `AUTO`, status `AI` | greeting e respostas automáticas via outbox |
+| Worker externo | embedded `false` | execute `python -m worker --hybrid` |
+
+Ativação gradual recomendada:
+
+1. `AI_WHATSAPP_ENABLED=true`, `WHATSAPP_AI_DEFAULT_MODE=OFF`; valide webhook, inbox e fila.
+2. Altere conversas humanas selecionadas para `ASSIST` e valide sugestões.
+3. Ative `AUTO` manualmente somente em conversas de teste.
+4. Depois da homologação, use `WHATSAPP_AI_DEFAULT_MODE=AUTO` para novos contatos.
+
+Para rollback, defina `AI_WHATSAPP_ENABLED=false` e reinicie/republique API e worker. O
+webhook passa ao fluxo humano, novas mensagens permanecem disponíveis na inbox e jobs
+híbridos pendentes da identidade são cancelados quando ela escreve novamente. Não reverta
+migration, não apague `Conversation.context` e não altere `CHAT_ENABLED`/LLM do Web Chat.
+Restaurar a flag retoma a V2 com os dados preservados. O endpoint `/` continua sendo health
+básico; flags operacionais ficam em logs/documentação e não são expostas publicamente.
 
 ## Ordem de publicação
 

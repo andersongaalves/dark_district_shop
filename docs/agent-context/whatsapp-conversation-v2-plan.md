@@ -1,6 +1,6 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: IN PROGRESS — F2A–F2F IMPLEMENTED; F2G PLANNED
+Status: IMPLEMENTED — F2A–F2G
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
@@ -16,10 +16,11 @@ F2E implementation based on commit: `8c2e52445ac4cfacaca320d3a7986b64a216391e`
 
 F2F implementation based on commit: `e42dadafba54a4d4833b886f0ad66e75af2e8fe8`
 
-Este documento especifica a evolução incremental. Somente F2A–F2F marcadas como
-`IMPLEMENTED` estão ativas; as demais seções continuam sendo desenho futuro até a fase
-de implementação, testes e publicação correspondente. O comportamento atual consolidado
-continua documentado em [whatsapp-ai.md](whatsapp-ai.md).
+F2G implementation based on commit: `7ca1baf1cc64a488d1c9b2e3a25eb23d93713242`
+
+Este documento registra a evolução incremental concluída. F2A–F2G estão implementadas;
+o comportamento atual consolidado continua documentado em
+[whatsapp-ai.md](whatsapp-ai.md).
 
 ## 1. Problema original
 
@@ -611,14 +612,19 @@ clique repetido. O painel segue colapsável no mobile, sem rolagem horizontal.
 
 ### F2G — Integração, documentação e rollout
 
-Status: PLANNED
+Status: IMPLEMENTED
 
-Arquivos: suítes WhatsApp/AI/Web Chat, `.env.example` somente se surgir configuração,
-`whatsapp-ai.md`, deploy e este plano.
+Arquivos: `backend/services/whatsapp_consumer.py`, suítes WhatsApp/worker,
+`backend/.env.example`, `whatsapp-ai.md`, deployment, testing e este plano.
 
-Responsabilidade: cenários completos, concorrência PostgreSQL opcional e ativação gradual.
-Risco: comportamento divergente entre SQLite e PostgreSQL/Meta. Testes: suítes completas,
-homologação autorizada e rollout inicial com modo padrão seguro.
+Resultado: as flags existentes controlam canal, participação da IA, modo inicial e local
+do consumer sem configuração paralela. Default inválido e booleanos inválidos falham cedo;
+o default seguro é `OFF` e não sobrescreve conversas existentes. IA desligada usa o fluxo
+humano completo sem LLM e sem afetar Web Chat. O consumer exige canal + IA ativos, registra
+startup/shutdown sem secrets e mantém isolamento de falhas. Worker externo, leases,
+ownership, retry/uncertain e rollback sem migration foram validados e documentados. Um
+teste E2E simulado consolida descoberta, handoff, ASSIST, mensagem humana, close e novo
+ciclo; F2A–F2G ficam implementadas.
 
 ## 22. Eventos operacionais mínimos
 

@@ -51,6 +51,58 @@ def test_auto_uses_real_catalog_without_mutating_stock(client, db, flow):
     assert not flow.notified
 
 
+def test_v2_rollout_e2e_from_discovery_to_human_and_new_cycle(client, db, flow, monkeypatch):
+    from services import whatsapp_inbox_service as inbox
+    create_product(client, id="e2e-first", title="Camiseta Primeira", price=70)
+    create_product(client, id="e2e-second", title="Camiseta Segunda", price=75)
+
+    flow.receive("Oi")
+    flow.drain()
+    flow.receive("Quero uma camiseta preta")
+    flow.drain()
+    flow.receive("M até 80")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    presented = conversation.context["conversation_v2"]["focus"]["product_ids"]
+    assert set(presented) == {"e2e-first", "e2e-second"}
+    selected_id = presented[1]
+    selected_price = {"e2e-first": "R$ 70,00", "e2e-second": "R$ 75,00"}[selected_id]
+
+    flow.receive("A segunda")
+    flow.drain()
+    assert conversation.context["conversation_v2"]["focus"]["selected_product_id"] == selected_id
+    flow.receive("Quanto custa?")
+    flow.drain()
+    assert selected_price in flow.sent[-1][1]
+
+    flow.receive("Quero comprar essa")
+    flow.drain()
+    assert conversation.status == "WAITING_HUMAN" and conversation.handoff_reason == "PURCHASE_INTENT"
+    assert len(flow.notified) == 1
+
+    base = f"/admin/conversations/{conversation.id}"
+    assert client.post(base + "/claim").json()["status"] == "HUMAN"
+    db.refresh(conversation)
+    assert conversation.ai_mode == "ASSIST"
+    assert client.post(base + "/ai-suggestion", json={}).status_code == 200
+    manual = []
+    monkeypatch.setattr(inbox, "send_text", lambda recipient, text: manual.append((recipient, text)) or "wamid.manual")
+    assert client.post(base + "/messages", json={
+        "message_id": str(uuid4()), "message": "Vou continuar seu atendimento."
+    }).status_code == 200
+    assert len(manual) == 1
+
+    assert client.patch(base + "/ai-mode", json={"ai_mode": "AUTO"}).status_code == 200
+    assert client.post(base + "/close").json()["status"] == "CLOSED"
+    previous_cycle = conversation.cycle
+    reopened = flow.receive("Tenho uma nova dúvida")
+    flow.receive(reopened.text, reopened.message_id)
+    flow.drain()
+    assert conversation.cycle == previous_cycle + 1 and conversation.status == "AI"
+    assert conversation.context.get("conversation_v2", {}).get("focus", {}).get("product_ids", []) == []
+    assert sum(text == ai.AUTO_WELCOME_TEXT for _, text in flow.sent) == 2
+
+
 def test_multiturn_size_answer_uses_current_preferences(client, db, flow):
     create_product(client, title="Camiseta Oversized")
 

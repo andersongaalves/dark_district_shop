@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 import hashlib
 import hmac
 import json
@@ -104,6 +105,28 @@ def test_webhook_persists_and_deduplicates_without_worker(wa_client, db):
     assert db.scalars(select(DeliveryJob)).all() == []
     assert db.query(Message).filter_by(sender="customer").count() == 1
     assert db.query(Conversation).one().status == "WAITING_HUMAN"
+
+
+def test_ai_disabled_falls_back_to_full_human_inbox_flow(client, db, monkeypatch):
+    from services import ai_agent, whatsapp_inbox_service as inbox
+    monkeypatch.setattr(settings, "AI_WHATSAPP_ENABLED", False)
+    monkeypatch.setattr(ai_agent, "respond", lambda *_: pytest.fail("LLM must stay disabled for WhatsApp"))
+
+    event = payload(message_id="human-fallback", text="Preciso de ajuda")
+    assert post_event(client, event).status_code == 200
+    conversation = db.query(Conversation).one()
+    assert conversation.status == "WAITING_HUMAN"
+    assert db.query(Message).filter_by(sender="customer").count() == 1
+    assert db.query(DeliveryJob).count() == 0
+
+    base = f"/admin/conversations/{conversation.id}"
+    assert client.post(base + "/claim").json()["status"] == "HUMAN"
+    sent = []
+    monkeypatch.setattr(inbox, "send_text", lambda recipient, text: sent.append((recipient, text)) or "wamid.human")
+    response = client.post(base + "/messages", json={"message_id": str(uuid4()), "message": "Olá, vou ajudar."})
+    assert response.status_code == 200 and response.json()["delivery_status"] == "sent"
+    assert sent == [("5599988887777", "Olá, vou ajudar.")]
+    assert client.post(base + "/close").json()["status"] == "CLOSED"
 
 
 def test_raw_body_signature_cannot_be_reused_after_tampering(wa_client, db):
