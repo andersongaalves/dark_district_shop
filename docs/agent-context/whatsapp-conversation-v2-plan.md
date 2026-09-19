@@ -626,6 +626,17 @@ ownership, retry/uncertain e rollback sem migration foram validados e documentad
 teste E2E simulado consolida descoberta, handoff, ASSIST, mensagem humana, close e novo
 ciclo; F2A–F2G ficam implementadas.
 
+### F6 — Regressão, stress e testes adversariais
+
+Status: COMPLETED
+
+Validação executada sobre o commit `ceb9da1dcddfb75b3d76999cfc49b6add9420a0b`.
+Foram exercitados state machine, handoffs naturais e adversariais, injeção durante
+clarification, ciclos, idempotência, leases, retries, falhas de provider/Meta, inbox,
+flags, worker e independência do Web Chat. A cobertura identificou que “fecha pra mim”
+não era classificado como `PURCHASE_INTENT`; a regra determinística recebeu essa variação
+e um teste de regressão. Não houve mudança de schema, capability ou arquitetura.
+
 ## 22. Eventos operacionais mínimos
 
 Não criar event table. Usar `Message.metadata` e logs estruturados existentes:

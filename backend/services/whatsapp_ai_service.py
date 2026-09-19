@@ -415,7 +415,7 @@ def _hard_handoff_reason(text, context=None):
     patterns = [
         ("HUMAN_REQUESTED", r"humano|atendente|pessoa real|falar com (?:uma )?pessoa|tem alguem|pessoa de verdade"),
         ("PAYMENT", r"\bpix\b|pagamento|pagar|chave|cobranca|cartao|boleto"),
-        ("PURCHASE_INTENT", r"quero comprar|vou levar|quero (?:essa|esse|esta|este)|separa|reserv|quero fechar|quero (?:duas|dois|uma|um|\d+) (?:dessa|desse)|fazer meu pedido|fecha.*compra"),
+        ("PURCHASE_INTENT", r"quero comprar|vou levar|quero (?:essa|esse|esta|este)|separa|reserv|quero fechar|quero (?:duas|dois|uma|um|\d+) (?:dessa|desse)|fazer meu pedido|fecha pra mim|fecha.*compra"),
         ("RETURN_EXCHANGE", r"troca|devolu|devolver|reembolso|estorno"),
         ("COMPLAINT", r"reclam|fraude|golpe|defeito|problema sensivel"),
         ("DELIVERY_ISSUE", r"nao chegou|atras|problema.*entrega|entrega.*problema"),
