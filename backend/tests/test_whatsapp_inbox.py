@@ -10,6 +10,7 @@ from integrations.whatsapp.client import WhatsAppDeliveryError
 from models.atendimento import Conversation, Message, utc_now
 from services import whatsapp_human_service as human, whatsapp_inbox_service as inbox, ai_agent
 from services.customer_service import create_web_session
+from test_catalog_tools import create_product
 
 
 @pytest.fixture
@@ -27,9 +28,89 @@ def test_all_inbox_routes_require_admin(public_client):
         ("GET", "/admin/conversations?channel=whatsapp", None), ("GET", base + "/messages", None),
         ("POST", base + "/claim", {}), ("POST", base + "/close", {}),
         ("POST", base + "/messages", {"message_id": str(uuid4()), "message": "Olá"}),
+        ("PATCH", base, {"status": "AI"}),
+        ("PATCH", base + "/ai-mode", {"ai_mode": "AUTO"}),
+        ("POST", base + "/ai-suggestion", {}),
     ]:
         assert public_client.request(method, url, json=body).status_code in {401, 403}
         assert public_client.request(method, url, json=body, headers={"Authorization": "Bearer invalid"}).status_code in {401, 403}
+
+
+@pytest.mark.parametrize("attempts", [1, 2])
+def test_detail_exposes_safe_ai_observability(client, db, conversation, monkeypatch, attempts):
+    monkeypatch.setattr(settings, "AI_WHATSAPP_ENABLED", True)
+    product = create_product(client, id=f"focus-{attempts}", title="Camiseta Gótica")
+    conversation.ai_mode = "AUTO"
+    conversation.status = "WAITING_HUMAN"
+    conversation.handoff_reason = "LOW_CONFIDENCE"
+    conversation.context = {
+        "internal_secret": "never expose this",
+        "conversation_v2": {
+            "schema_version": 1,
+            "last_decision": {"action": "CLARIFY", "reason_code": "AMBIGUOUS_PROCESS",
+                              "source_message_id": "internal-message-id"},
+            "clarification": {"attempts": attempts, "kind": "PROCESS_TOPIC",
+                              "options": ["compra"], "source_message_id": "internal-message-id"},
+            "focus": {"product_ids": [product["id"]], "selected_product_id": product["id"]},
+            "preferences": {"garment": "camiseta", "style_query": "gotico", "size": "M",
+                            "color": "preto", "max_price": 80, "product_type": "catalogo",
+                            "offer_only": True},
+        },
+    }
+    db.add(Message(conversation_id=conversation.id, sender="assistant", content="Ativado",
+                   extra_data={"event": "AI_ACTIVATED", "cycle": 1}))
+    db.commit()
+
+    payload = client.get(f"/admin/conversations/{conversation.id}/messages").json()
+    state = payload["ai_state"]
+    assert state["mode"] == "AUTO" and state["status"] == "WAITING_HUMAN"
+    assert state["last_decision"] == {"action": "CLARIFY"}
+    assert state["clarification"] == {"attempts": attempts, "max_attempts": 2, "kind": "PROCESS_TOPIC"}
+    assert state["handoff"] == {"reason": "LOW_CONFIDENCE", "clarification_attempts": attempts}
+    assert state["focus"]["selected_product"] == {"id": product["id"], "name": "Camiseta Gótica"}
+    assert state["focus"]["presented_count"] == 1
+    assert state["preferences"]["max_price"] == 80
+    assert state["actions"]["resume_ai"] is True
+    assert state["recent_events"][0]["type"] == "AI_ACTIVATED"
+    assert "never expose this" not in str(payload)
+    assert "internal-message-id" not in str(payload)
+
+
+@pytest.mark.parametrize("reason", ["PURCHASE_INTENT", "HUMAN_REQUESTED"])
+def test_detail_exposes_real_handoff_reason(client, db, conversation, reason):
+    conversation.handoff_reason = reason
+    conversation.status = "WAITING_HUMAN"
+    db.commit()
+    handoff = client.get(f"/admin/conversations/{conversation.id}/messages").json()["ai_state"]["handoff"]
+    assert handoff == {"reason": reason, "clarification_attempts": None}
+
+
+def test_legacy_empty_context_and_closed_actions_are_safe(client, db, conversation):
+    conversation.context = {"conversation_v2": {"last_decision": {"action": "INTERNAL"}},
+                            "provider_payload": {"prompt": "hidden"}}
+    conversation.status = "CLOSED"
+    conversation.ai_mode = "OFF"
+    db.commit()
+    payload = client.get(f"/admin/conversations/{conversation.id}/messages").json()
+    state = payload["ai_state"]
+    assert state["last_decision"] is None
+    assert state["clarification"] is None and state["handoff"] is None
+    assert state["focus"] == {"selected_product": None, "presented_count": 0, "products": []}
+    assert state["preferences"] == {}
+    assert state["actions"]["resume_ai"] is False
+    assert "provider_payload" not in str(payload) and "hidden" not in str(payload)
+
+
+@pytest.mark.parametrize(("mode", "status"), [
+    ("AUTO", "AI"), ("AUTO", "WAITING_HUMAN"), ("ASSIST", "HUMAN"), ("OFF", "HUMAN"), ("OFF", "CLOSED"),
+])
+def test_detail_represents_mode_and_status_without_conflating_them(client, db, conversation, mode, status):
+    conversation.ai_mode = mode
+    conversation.status = status
+    db.commit()
+    state = client.get(f"/admin/conversations/{conversation.id}/messages").json()["ai_state"]
+    assert state["mode"] == mode
+    assert state["status"] == status
 
 
 def test_list_history_claim_close_and_reopen(client, db, conversation, monkeypatch):

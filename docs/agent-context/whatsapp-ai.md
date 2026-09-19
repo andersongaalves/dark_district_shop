@@ -1,10 +1,10 @@
 # WhatsApp e AI Agent
 
-Last verified against commit: `8c2e52445ac4cfacaca320d3a7986b64a216391e`
+Last verified against commit: `e42dadafba54a4d4833b886f0ad66e75af2e8fe8`
 
 Conversational V2:
-[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2E estão
-implementadas; F2F–F2G permanecem `PLANNED` e não descrevem comportamento atualmente
+[whatsapp-conversation-v2-plan.md](whatsapp-conversation-v2-plan.md). F2A–F2F estão
+implementadas; F2G permanece `PLANNED` e não descreve comportamento atualmente
 implementado.
 
 ## Seleção do fluxo
@@ -265,6 +265,19 @@ descontos, escrita de estoque, SQL livre ou dados privados a esse registry.
 de `OFF` e conversa aberta. Usa lease/versionamento, não segura transação no LLM e mantém
 cache de 30 segundos por contexto. Polling e digitação não geram sugestões. “Enviar
 agora” usa o endpoint humano normal e seu UUID de idempotência.
+
+## Observabilidade na inbox
+
+O detalhe administrativo da conversa inclui um `ai_state` estável derivado do estado e
+do contexto V2 validado: modo, status, última decisão, clarification, handoff, foco,
+preferências, eventos recentes e ações disponíveis. Produtos do foco são resolvidos apenas
+para ID e nome em consulta agrupada. Eventos recentes usam somente códigos persistidos e
+allowlisted de ativação/retomada e transições de status existentes.
+
+O read model nunca inclui `Conversation.context` bruto, prompts, reasoning, payloads de
+tools/provider ou IDs internos da decisão. Contexto legado ou inválido produz campos
+vazios. A interface traduz decisões e motivos reais de handoff, deriva a explicação de
+`LOW_CONFIDENCE` das tentativas e mantém o polling sem apagar o rascunho humano.
 
 ## Invariantes
 

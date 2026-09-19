@@ -1,6 +1,6 @@
 # Painel administrativo e inbox
 
-Last verified against commit: `ea2d829128b4335d1fb508b9d147badd8dd50c78`
+Last verified against commit: `e42dadafba54a4d4833b886f0ad66e75af2e8fe8`
 
 ## Entrada e autenticação
 
@@ -60,9 +60,23 @@ Drafts e UUIDs de tentativas ficam em memória. Uma tentativa ambígua mantém t
 para reconciliação e impede editar silenciosamente a mesma operação. Polling é suspenso
 enquanto há mutação e respostas atrasadas são ignoradas por revisão.
 
-O painel lateral da IA mostra modo, razão do handoff, “Retomar IA” e sugestão. Ele abre
-no desktop e é colapsável no mobile. Sugestão só é pedida por clique. Copiar/usar/enviar
-é habilitado em `HUMAN`; “Enviar agora” preenche o composer e dispara o POST humano.
+O painel lateral da IA mostra separadamente modo e status, última decisão com rótulo
+amigável, tentativa de esclarecimento, motivo de handoff, produto em foco, quantidade de
+produtos apresentados, preferências allowlisted e eventos operacionais recentes. Ele abre
+no desktop e é colapsável no mobile. A API entrega esses dados no `ai_state` do histórico;
+o `Conversation.context` bruto, prompts, payloads do provider e IDs internos não chegam ao
+browser. IDs de produto são limitados pelo contexto V2 e resolvidos em uma consulta para
+nome; o painel não funciona como catálogo.
+
+As ações vêm no mesmo read model. “Retomar IA” aparece somente em `WAITING_HUMAN` ou
+`HUMAN`, fica desabilitado durante a chamada e some após `AI`; nunca aparece em `CLOSED`.
+Assumir e encerrar também respeitam o estado, e `HUMAN + ASSIST` mantém geração manual de
+sugestão. Sugestão só é pedida por clique. Copiar/usar/enviar é habilitado em `HUMAN`;
+“Enviar agora” preenche o composer e dispara o POST humano.
+
+O polling de 5 segundos continua usando o endpoint de histórico e passa a atualizar também
+todo o `ai_state`. Revisões descartam snapshots atrasados durante mutações, e o textarea não
+é reconstruído nem substituído pelo polling, preservando o rascunho do atendente.
 
 ## Onde começar
 

@@ -1,6 +1,6 @@
 # WhatsApp Conversational AI V2 Plan
 
-Status: IN PROGRESS — F2A–F2E IMPLEMENTED; F2F–F2G PLANNED
+Status: IN PROGRESS — F2A–F2F IMPLEMENTED; F2G PLANNED
 
 Based on commit: `2c0ac2632d52fd8ab5b77115aa6c1392f333e514`
 
@@ -14,7 +14,9 @@ F2D implementation based on commit: `fa8f104a95726939c207c60225145a8403d9d91b`
 
 F2E implementation based on commit: `8c2e52445ac4cfacaca320d3a7986b64a216391e`
 
-Este documento especifica a evolução incremental. Somente F2A–F2E marcadas como
+F2F implementation based on commit: `e42dadafba54a4d4833b886f0ad66e75af2e8fe8`
+
+Este documento especifica a evolução incremental. Somente F2A–F2F marcadas como
 `IMPLEMENTED` estão ativas; as demais seções continuam sendo desenho futuro até a fase
 de implementação, testes e publicação correspondente. O comportamento atual consolidado
 continua documentado em [whatsapp-ai.md](whatsapp-ai.md).
@@ -594,15 +596,18 @@ versão mudarem antes do envio.
 
 ### F2F — Observabilidade e interface da inbox
 
-Status: PLANNED
+Status: IMPLEMENTED
 
-Arquivos prováveis: `whatsapp_inbox_service.py`, `routers/atendimento_admin.py`, schemas
-administrativos, `frontend/admin/atendimento/atendimento.js`, `.css` e
-`tests/frontend/inbox.test.mjs`.
+Arquivos: `backend/services/whatsapp_inbox_service.py`,
+`frontend/admin/atendimento/atendimento.js`, `.css`, testes da inbox e documentação.
 
-Responsabilidade: metadados/eventos mínimos, campos derivados, decisão/tentativas na UI e
-UX idempotente de retomada. Risco: exposição de texto/PII, consultas N+1, polling atrasado
-e regressão mobile. Testes: auth, serialização, frontend e visual desktop/mobile.
+Resultado: o detalhe da conversa expõe um `ai_state` administrativo allowlisted com modo,
+status, decisão, clarification, handoff, foco resolvido para nome, preferências, eventos
+mínimos e ações permitidas. Contexto cru, prompts, reasoning, payloads internos e IDs da
+decisão permanecem no servidor. O painel apresenta rótulos amigáveis, preserva sugestões
+ASSIST e restringe claim/close/resume pela state machine. Polling atualiza o painel sem
+reconstruir o textarea; revisão e estado `busy` descartam snapshots atrasados e bloqueiam
+clique repetido. O painel segue colapsável no mobile, sem rolagem horizontal.
 
 ### F2G — Integração, documentação e rollout
 

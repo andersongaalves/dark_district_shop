@@ -10,10 +10,20 @@ from sqlalchemy.orm import aliased
 from core.config import settings
 from integrations.whatsapp.client import send_text, WhatsAppDeliveryError
 from models.atendimento import ChannelIdentity, Conversation, Message, DeliveryJob, utc_now
+from models.produto import Produto
 from services.customer_service import SupportError, aware
-from services import conversation_service
+from services import conversation_service, whatsapp_ai_service as ai
 
 logger = logging.getLogger(__name__)
+
+AI_ACTIONS = {"ANSWER", "CLARIFY", "HANDOFF", "NO_ACTION"}
+AI_EVENTS = {"AI_ACTIVATED", "AI_RESUMED"}
+STATUS_EVENTS = {
+    "Atendimento: AI.": "AI_RESUMED",
+    "Atendimento: HUMAN.": "HUMAN_CLAIMED",
+    "Atendimento: CLOSED.": "CONVERSATION_CLOSED",
+    "Atendimento: WAITING_HUMAN.": "AI_HANDOFF",
+}
 
 
 def require_conversation(db, conversation_id, *, lock=False):
@@ -35,6 +45,60 @@ def message_view(message, job_status=None):
         status = "uncertain"
     return {"id": message.id, "sender": message.sender, "content": message.content,
             "created_at": aware(message.created_at), "delivery_status": status}
+
+
+def ai_state_view(db, conversation, messages=()):
+    """Expose a bounded administrative read model, never the raw conversation context."""
+    context = conversation.context if isinstance(conversation.context, dict) else {}
+    v2 = context.get("conversation_v2") if isinstance(context.get("conversation_v2"), dict) else {}
+    raw_decision = v2.get("last_decision") if isinstance(v2.get("last_decision"), dict) else {}
+    action = raw_decision.get("action") if raw_decision.get("action") in AI_ACTIONS else None
+    clarification = ai.clarification_from_context(context)
+    focus = ai._focus_from_context(context)
+    preferences = ai._preferences_from_context(context).model_dump(mode="json", exclude_none=True)
+
+    products = []
+    if focus.product_ids:
+        found = {product.id: product.title for product in db.scalars(
+            select(Produto).where(Produto.id.in_(focus.product_ids))).all()}
+        products = [{"id": product_id, "name": found[product_id]}
+                    for product_id in focus.product_ids if product_id in found]
+    selected = next((product for product in products if product["id"] == focus.selected_product_id), None)
+
+    events = []
+    for message in messages:
+        metadata = message.extra_data if isinstance(message.extra_data, dict) else {}
+        event = metadata.get("event") if metadata.get("event") in AI_EVENTS else None
+        if not event and message.sender == "system":
+            event = STATUS_EVENTS.get(message.content)
+        if event:
+            events.append({"type": event, "created_at": aware(message.created_at)})
+
+    attempts = clarification.attempts if clarification else None
+    if conversation.handoff_reason == "LOW_CONFIDENCE" and attempts is None:
+        attempts = ai.MAX_CLARIFICATION_ATTEMPTS
+    return {
+        "mode": conversation.ai_mode,
+        "status": conversation.status,
+        "last_decision": {"action": action} if action else None,
+        "clarification": ({"attempts": clarification.attempts,
+                           "max_attempts": ai.MAX_CLARIFICATION_ATTEMPTS,
+                           "kind": clarification.kind} if clarification else None),
+        "handoff": ({"reason": conversation.handoff_reason,
+                     "clarification_attempts": attempts} if conversation.handoff_reason else None),
+        "focus": {"selected_product": selected, "presented_count": len(focus.product_ids),
+                  "products": products},
+        "preferences": preferences,
+        "recent_events": events[-8:],
+        "actions": {
+            "claim": conversation.status not in {"HUMAN", "CLOSED"},
+            "close": conversation.status != "CLOSED",
+            "change_mode": conversation.status != "CLOSED",
+            "resume_ai": settings.AI_WHATSAPP_ENABLED and conversation.status in {"WAITING_HUMAN", "HUMAN"},
+            "suggest": conversation.status != "CLOSED" and conversation.ai_mode != "OFF",
+            "reply": conversation.status == "HUMAN",
+        },
+    }
 
 
 def list_inbox(db, status=None, limit=50, offset=0):
@@ -70,6 +134,7 @@ def get_messages(db, conversation_id, limit=50, before=None):
             [m.external_id for m in rows if m.external_id and m.external_id.startswith("hybrid:")]))).all())
     return {"conversation_id": conversation_id, "status": conversation.status,
             "ai_mode": conversation.ai_mode, "handoff_reason": conversation.handoff_reason, "cycle": conversation.cycle,
+            "ai_state": ai_state_view(db, conversation, reversed(rows[:limit])),
             "messages": [message_view(m, jobs.get(m.external_id)) for m in reversed(rows[:limit])],
             "has_more": len(rows) > limit}
 

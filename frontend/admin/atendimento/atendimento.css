@@ -1,4 +1,4 @@
-.inbox { display: grid; grid-template-columns: 320px minmax(0, 1fr); border: 1px solid #25252d; border-radius: 6px; background: #121218; }
+.inbox { display: grid; grid-template-columns: 320px minmax(0, 1fr); max-width: 100%; overflow: hidden; border: 1px solid #25252d; border-radius: 6px; background: #121218; }
 .inbox [hidden] { display: none !important; }
 .inbox-sidebar { padding: 16px; border-right: 1px solid #25252d; }
 .inbox button, .inbox select, .inbox textarea { border: 1px solid #33333d; border-radius: 4px; padding: 10px; background: #18181f; color: #fff; }
@@ -28,6 +28,15 @@
 .inbox-ai summary { cursor: pointer; font-weight: bold; margin-bottom: 16px; }
 .inbox-ai p { line-height: 1.5; color: #ccc; }
 .inbox-ai label { display: grid; gap: 8px; }
+.inbox-ai h3 { margin: 16px 0 6px; font-size: 14px; }
+.inbox-ai-summary { padding: 10px; border: 1px solid #6d4aa2; border-radius: 4px; color: #fff !important; font-weight: 700; }
+.inbox-ai-state, .inbox-ai [data-ai-preferences-list] { display: grid; gap: 8px; margin: 0; }
+.inbox-ai-state div, .inbox-ai [data-ai-preferences-list] div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.inbox-ai dt { color: #aaa; }
+.inbox-ai dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.inbox-ai ol { margin: 8px 0; padding-left: 20px; }
+.inbox-ai li { margin-bottom: 8px; line-height: 1.4; }
+.inbox-ai li time { color: #aaa; }
 .inbox-ai-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .inbox .inbox-suggestion { display: block; width: 100%; white-space: pre-wrap; text-align: left; overflow-wrap: anywhere; margin-top: 16px; line-height: 1.5; }
 @media (min-width: 1100px) {
@@ -42,4 +51,5 @@
     .inbox-message { max-width: 95%; }
     .inbox-ai { grid-column: 1; border-left: 0; border-top: 1px solid #25252d; }
     .inbox:not(.has-selection) .inbox-ai { display: none; }
+    .inbox-ai details { max-width: 100%; }
 }

@@ -1,7 +1,19 @@
 import { get, post, patch } from "../api.js";
 import { escapeHtml } from "../../js/utils/dom.js";
 
-export const STATUS_LABELS = { WAITING_HUMAN: "Aguardando", HUMAN: "Em atendimento", CLOSED: "Encerrada", AI: "IA atendendo" };
+export const STATUS_LABELS = { WAITING_HUMAN: "Aguardando humano", HUMAN: "Atendimento humano", CLOSED: "Encerrada", AI: "IA ativa" };
+export const MODE_LABELS = { AUTO: "Automático", ASSIST: "Assistido", OFF: "Desativado" };
+export const DECISION_LABELS = { ANSWER: "Resposta automática", CLARIFY: "Pergunta de esclarecimento", HANDOFF: "Encaminhado para humano", NO_ACTION: "Sem ação automática" };
+export const HANDOFF_LABELS = {
+    HUMAN_REQUESTED: "Cliente pediu atendente", PURCHASE_INTENT: "Cliente quer finalizar compra",
+    PAYMENT: "Pagamento", ORDER_SUPPORT: "Suporte de pedido", COMPLAINT: "Reclamação",
+    RETURN_EXCHANGE: "Troca ou devolução", NEGOTIATION: "Negociação",
+    DELIVERY_ISSUE: "Problema de entrega", LOW_CONFIDENCE: "IA não conseguiu compreender",
+    AI_FAILURE: "Falha técnica da IA"
+};
+const EVENT_LABELS = { AI_ACTIVATED: "Atendimento automático ativado", AI_RESUMED: "Atendimento automático retomado", HUMAN_CLAIMED: "Atendimento assumido por humano", CONVERSATION_CLOSED: "Atendimento encerrado", AI_HANDOFF: "Encaminhado para humano" };
+const PREFERENCE_LABELS = { garment: "Peça", style_query: "Estilo", size: "Tamanho", color: "Cor", max_price: "Preço máximo", product_type: "Tipo", offer_only: "Somente ofertas" };
+const VALUE_LABELS = { gotico: "Gótico", catalogo: "Catálogo", brecho: "Brechó", camiseta: "Camiseta", calca: "Calça" };
 const DELIVERY_LABELS = { pending: "Na fila", sending: "Enviando…", sent: "Aceita pelo WhatsApp", failed: "Falha no envio", uncertain: "Envio sem confirmação — confira antes de reenviar", cancelled: "Não enviada" };
 const date = (value) => new Date(value).toLocaleString("pt-BR");
 const escape = (value) => escapeHtml(String(value ?? ""));
@@ -20,22 +32,73 @@ export function mountInbox(root, { api = { get, post, patch }, interval = 5000 }
         <div data-conversation hidden><header class="inbox-toolbar"><button data-back>Voltar</button><strong data-phone></strong><span data-status></span><button data-claim>Assumir atendimento</button><button data-close>Encerrar atendimento</button></header>
         <button data-older hidden>Carregar mensagens anteriores</button><div class="inbox-messages" aria-label="Mensagens"></div>
         <form><label for="inbox-text">Sua resposta</label><textarea id="inbox-text" maxlength="2000" rows="3" required></textarea><button type="submit">Enviar</button></form></div></section>
-        <aside class="inbox-ai" hidden><details><summary>Assistente IA</summary><label>Modo IA <select data-ai-mode><option value="OFF">Desligado</option><option value="ASSIST">Copiloto</option><option value="AUTO">Automático</option></select></label>
-        <p data-ai-reason></p><p>O modo Automático só responde no status IA atendendo. A IA não finaliza compras.</p>
+        <aside class="inbox-ai" hidden><details><summary>Assistente IA</summary><p class="inbox-ai-summary" data-ai-summary></p>
+        <dl class="inbox-ai-state"><div><dt>Modo IA</dt><dd data-ai-mode-label></dd></div><div><dt>Status</dt><dd data-ai-status></dd></div><div data-ai-decision-row><dt>Última ação da IA</dt><dd data-ai-decision></dd></div></dl>
+        <section data-ai-clarification hidden><h3>Esclarecimento</h3><p data-ai-clarification-text></p></section>
+        <section data-ai-handoff hidden><h3>Motivo do encaminhamento</h3><p data-ai-reason></p></section>
+        <section data-ai-focus hidden><h3>Produto em foco</h3><p data-ai-focus-text></p><small data-ai-presented></small></section>
+        <section data-ai-preferences hidden><h3>Preferências detectadas</h3><dl data-ai-preferences-list></dl></section>
+        <section data-ai-events hidden><h3>Eventos recentes</h3><ol data-ai-events-list></ol></section>
+        <label>Alterar modo <select data-ai-mode><option value="OFF">Desativado</option><option value="ASSIST">Assistido</option><option value="AUTO">Automático</option></select></label>
+        <p>A IA não finaliza compras.</p>
         <button data-ai-resume>Retomar IA</button><p data-ai-notice role="status"></p><button data-ai-generate>Gerar sugestão</button>
         <button data-ai-suggestion class="inbox-suggestion" aria-label="Copiar sugestão"></button><div class="inbox-ai-actions"><button data-ai-use>Usar resposta</button><button data-ai-send>Enviar agora</button></div></details></aside></div>`;
     const q = (selector) => root.querySelector(selector);
     const textarea = q("textarea");
     const notify = (text) => { if (active) q(".inbox-notice").textContent = text; };
     const path = () => `/admin/conversations/${selected.conversation_id}`;
+    const money = (value) => Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const title = (value) => value ? String(value).charAt(0).toUpperCase() + String(value).slice(1) : "";
+    function renderAIState() {
+        const state = selected.ai_state || { mode: selected.ai_mode || "OFF", status: selected.status, actions: {} };
+        const actions = state.actions || {};
+        const summary = state.status === "CLOSED" ? "Atendimento encerrado" : state.mode === "OFF" ? "IA desativada" :
+            state.mode === "ASSIST" ? "IA em modo assistido" : state.status === "AI" ? "Atendimento automático ativo" : "Atendimento automático pausado";
+        q("[data-ai-summary]").textContent = summary;
+        q("[data-ai-mode-label]").textContent = MODE_LABELS[state.mode] || "Não informado";
+        q("[data-ai-status]").textContent = STATUS_LABELS[state.status] || state.status || "Não informado";
+        const decision = state.last_decision?.action;
+        q("[data-ai-decision-row]").hidden = !decision;
+        q("[data-ai-decision]").textContent = DECISION_LABELS[decision] || "";
+
+        const clarification = state.clarification;
+        q("[data-ai-clarification]").hidden = !clarification;
+        q("[data-ai-clarification-text]").textContent = clarification ? `Tentativa: ${clarification.attempts} de ${clarification.max_attempts}${clarification.kind === "PROCESS_TOPIC" ? ". A IA está identificando qual processo o cliente quer conhecer." : ". A IA está esclarecendo a solicitação."}` : "";
+
+        const handoff = state.handoff;
+        q("[data-ai-handoff]").hidden = !handoff;
+        q("[data-ai-reason]").textContent = handoff?.reason === "LOW_CONFIDENCE" ?
+            `Não foi possível compreender a solicitação após ${handoff.clarification_attempts || 2} tentativas de esclarecimento.` :
+            (HANDOFF_LABELS[handoff?.reason] || "");
+
+        const focus = state.focus || {};
+        q("[data-ai-focus]").hidden = !focus.selected_product;
+        q("[data-ai-focus-text]").textContent = focus.selected_product?.name || "";
+        q("[data-ai-presented]").textContent = focus.presented_count > 1 ? `${focus.presented_count} produtos apresentados nesta conversa.` : "";
+
+        const preferences = Object.entries(state.preferences || {});
+        q("[data-ai-preferences]").hidden = preferences.length === 0;
+        q("[data-ai-preferences-list]").innerHTML = preferences.map(([key, value]) => {
+            const shown = key === "max_price" ? money(value) : key === "offer_only" ? (value ? "Sim" : "Não") : (VALUE_LABELS[value] || title(value));
+            return `<div><dt>${escape(PREFERENCE_LABELS[key] || key)}</dt><dd>${escape(shown)}</dd></div>`;
+        }).join("");
+
+        const events = state.recent_events || [];
+        q("[data-ai-events]").hidden = events.length === 0;
+        q("[data-ai-events-list]").innerHTML = events.map((event) => `<li><time datetime="${escape(event.created_at)}">${escape(new Date(event.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}</time> ${escape(EVENT_LABELS[event.type] || event.type)}</li>`).join("");
+        q("[data-ai-resume]").hidden = !actions.resume_ai;
+        q("[data-claim]").hidden = actions.claim === false;
+        q("[data-close]").hidden = actions.close === false;
+        q("[data-ai-generate]").hidden = actions.suggest === false;
+        q("[data-ai-mode]").disabled = busy || actions.change_mode === false;
+    }
     function controls() {
         if (!active || !selected) return;
         q("[data-status]").textContent = STATUS_LABELS[selected.status] || selected.status;
         q(".inbox-ai").hidden = false;
         q("[data-ai-mode]").value = selected.ai_mode || "OFF";
-        q("[data-ai-mode]").disabled = busy;
-        q("[data-ai-reason]").textContent = selected.handoff_reason ? `Motivo: ${selected.handoff_reason}` : "";
-        q("[data-ai-resume]").disabled = busy || selected.ai_mode !== "AUTO" || selected.status === "AI" || selected.status === "CLOSED";
+        renderAIState();
+        q("[data-ai-resume]").disabled = busy;
         q("[data-ai-generate]").disabled = busy || generating || !selected.ai_mode || selected.ai_mode === "OFF" || selected.status === "CLOSED";
         q("[data-ai-generate]").textContent = generating ? "Consultando…" : suggestion ? "Gerar novamente" : "Gerar sugestão";
         ["[data-ai-use]", "[data-ai-send]", "[data-ai-suggestion]"].forEach((selector) => {
@@ -79,6 +142,7 @@ export function mountInbox(root, { api = { get, post, patch }, interval = 5000 }
         selected.status = result.status;
         selected.ai_mode = result.ai_mode || selected.ai_mode || "OFF";
         selected.handoff_reason = result.handoff_reason;
+        selected.ai_state = result.ai_state;
         const latestMessage = result.messages.at(-1)?.id;
         const context = `${selected.conversation_id}:${result.cycle}:${selected.status}:${selected.ai_mode}:${latestMessage}`;
         if (!older && context !== aiContext) { suggestion = ""; aiContext = context; q("[data-ai-suggestion]").textContent = ""; }
@@ -178,6 +242,7 @@ export function mountInbox(root, { api = { get, post, patch }, interval = 5000 }
             const result = await api.patch(path() + (resume ? "" : "/ai-mode"), resume ? { status: "AI" } : { ai_mode: mode });
             if (!active) return;
             selected.status = result.status; if (result.ai_mode) selected.ai_mode = result.ai_mode;
+            notify(resume ? "Atendimento automático retomado." : "Modo da IA atualizado.");
             await loadMessages();
         } catch (error) { notify(error.message); }
         finally { busy = false; controls(); }
