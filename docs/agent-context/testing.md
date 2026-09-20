@@ -53,6 +53,7 @@ concorrentes, ordem por identidade, idempotência de webhooks e envio humano.
 | Inbox/admin WhatsApp | `test_whatsapp_inbox.py`, `test_whatsapp_hybrid.py`, `inbox.test.mjs` |
 | Worker/consumer | `test_worker.py`, `test_whatsapp_hybrid.py`; PostgreSQL opcional para concorrência |
 | Layout/componentes públicos | arquivo `.test.mjs` correspondente + validação visual desktop/mobile |
+| SEO, rotas públicas ou catálogo indexável | `seo.test.mjs` + `npm.cmd run generate:sitemap` antes do deploy |
 
 Mudança compartilhada entre canais requer testar Web Chat e WhatsApp. Mudança em helper
 de URL/API requer `architecture.test.mjs` e o teste funcional consumidor.

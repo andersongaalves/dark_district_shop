@@ -7,6 +7,7 @@ import { renderHeader } from "../../components/header.js";
 import { getProduct } from "../../api/products_api.js";
 import { getCart } from "../../cart/cart.js";
 import { initChat } from "../../chat/chat.js";
+import { clearNoIndex, clearProductMetadata, setNoIndex, setProductMetadata } from "../../core/seo.js";
 
 import {
     renderProduct,
@@ -22,6 +23,8 @@ export async function renderProduto() {
     const productId = getProductId();
 
     if (!productId) {
+        clearProductMetadata();
+        setNoIndex();
         renderNotFound(section);
         return;
     }
@@ -30,11 +33,15 @@ export async function renderProduto() {
         const product = await getProduct(productId);
 
         if (!product) {
+            clearProductMetadata();
+            setNoIndex();
             renderNotFound(section);
             return;
         }
 
         renderProduct(section, product);
+        clearNoIndex();
+        setProductMetadata(product);
         setupGallery(section);
         setupOptions(section, product, () => updateProductAvailability(section, product));
         updateAllOptionAvailability(section, product);
@@ -64,6 +71,8 @@ export async function renderProduto() {
             error
         );
 
+        clearProductMetadata();
+        if (error?.status === 404) setNoIndex();
         renderError(section);
     }
 }

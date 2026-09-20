@@ -37,6 +37,10 @@ test("FAQ shows all published questions with native expandable answers", async (
     items[1].querySelector("summary").click();
     assert.equal(items[1].open, true);
     assert.equal(document.querySelector(".faq-list").getAttribute("aria-busy"), "false");
+    const schema = JSON.parse(document.querySelector("#seo-faq").textContent);
+    assert.equal(schema["@type"], "FAQPage");
+    assert.equal(schema.mainEntity.length, published.length);
+    assert.equal(schema.mainEntity[0].name, published[0].question);
     assert.match(document.querySelector(".faq-contact a").href, /^https:\/\/wa.me\/\d+$/);
 });
 

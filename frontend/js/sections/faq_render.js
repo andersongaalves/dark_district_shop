@@ -1,5 +1,6 @@
 import { getFAQ } from "../api/faq_api.js";
 import { getWhatsAppUrl } from "../utils/urls.js";
+import { setStructuredData } from "../core/seo.js";
 
 export async function renderFAQ(container, focusFirst = false) {
     if (!container) return;
@@ -35,6 +36,15 @@ export async function renderFAQ(container, focusFirst = false) {
             fragment.append(details);
         }
         list.replaceChildren(fragment);
+        setStructuredData("seo-faq", {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: items.map((item) => ({
+                "@type": "Question",
+                name: item.question,
+                acceptedAnswer: { "@type": "Answer", text: item.answer }
+            }))
+        });
         if (focusFirst) list.querySelector("summary")?.focus();
     } catch {
         const message = document.createElement("p");

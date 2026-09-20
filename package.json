@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:frontend": "node --test tests/frontend/*.test.mjs"
+    "test:frontend": "node --test tests/frontend/*.test.mjs",
+    "generate:sitemap": "node frontend/scripts/generate-sitemap.mjs"
   },
   "devDependencies": {
     "jsdom": "^30.0.1"

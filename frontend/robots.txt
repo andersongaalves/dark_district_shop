@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /webhooks/
+
+Sitemap: https://darkdistrict.com.br/sitemap.xml

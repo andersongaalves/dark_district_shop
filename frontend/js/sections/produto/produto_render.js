@@ -37,6 +37,7 @@ export function renderProduct(section, product) {
                                     <img
                                         src="${escapeHtml(mainImage)}"
                                         alt="${escapeHtml(product.title)}"
+                                        fetchpriority="high"
                                     >
                                 `
                                 : `

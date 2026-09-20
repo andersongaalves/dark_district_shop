@@ -22,6 +22,12 @@ Para validar rotas sem extensão com o runtime Cloudflare, o projeto já documen
 `npx.cmd wrangler@4 dev --local --port 8788` executado em `frontend/`. Não há segredo no
 bundle; qualquer chave operacional fica no backend.
 
+Antes de cada publicação do frontend, execute `npm.cmd run generate:sitemap`. O comando
+consulta somente o catálogo público e atualiza `frontend/sitemap.xml` com os produtos
+publicamente disponíveis e seus `updated_at`; ele não aceita token. Em seguida execute
+os testes frontend e publique os assets. Consulte [SEO técnico](seo.md) para URLs
+canônicas, robots, Search Console e a checklist pós-deploy.
+
 ## API no Render
 
 Configuração atual documentada:

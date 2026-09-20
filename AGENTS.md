@@ -57,6 +57,7 @@ Detalhes e caminhos estão em [arquitetura](docs/agent-context/architecture.md).
 | Models, relações e migrations | [data-model.md](docs/agent-context/data-model.md) |
 | Testes e seleção de suítes | [testing.md](docs/agent-context/testing.md) |
 | Render, Cloudflare e configuração | [deployment.md](docs/agent-context/deployment.md) |
+| SEO técnico, sitemap e Search Console | [seo.md](docs/agent-context/seo.md) |
 | Decisões arquiteturais duráveis | [decisions.md](docs/agent-context/decisions.md) |
 
 Os documentos funcionais em `docs/` continuam úteis para detalhes de uma entrega.
