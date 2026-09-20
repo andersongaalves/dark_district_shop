@@ -98,6 +98,7 @@ def test_hard_handoffs_run_before_agent(db, monkeypatch, message, reason):
     ("fecha pra mim", HandoffReason.PURCHASE_INTENT),
     ("me manda o pix", HandoffReason.PAYMENT),
     ("tem alguem de verdade?", HandoffReason.HUMAN_REQUESTED),
+    ("quero falar com alguém", HandoffReason.HUMAN_REQUESTED),
     ("faz mais barato?", HandoffReason.NEGOTIATION),
     ("deu problema no pagamento", HandoffReason.PAYMENT),
 ])

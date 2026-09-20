@@ -637,8 +637,9 @@ flags, worker e independência do Web Chat. A cobertura identificou que “fecha
 não era classificado como `PURCHASE_INTENT`; a regra determinística recebeu essa variação
 e um teste de regressão. Não houve mudança de schema, capability ou arquitetura.
 
-Próxima fase planejada: **F8 — SEO + Google indexing**. Ela não faz parte da IA
-conversacional e não foi iniciada nesta fase.
+**F8 — SEO + Google indexing** foi implementada no commit
+`b826d6981e110051e53ffdc5dd4ee352e97bd402`. Ela permanece independente da IA
+conversacional; o estado operacional de SEO está em [seo.md](seo.md).
 
 ## 22. Eventos operacionais mínimos
 

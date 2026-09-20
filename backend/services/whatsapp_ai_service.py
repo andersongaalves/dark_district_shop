@@ -386,6 +386,8 @@ def change_mode(db, conversation_id, mode):
     from services.whatsapp_inbox_service import require_conversation
     from services.whatsapp_hybrid_service import handoff
     c = require_conversation(db, conversation_id, lock=True)
+    if c.status == "CLOSED":
+        raise SupportError("Conversa encerrada não permite alterar o modo da IA.", 409)
     if mode != "OFF" and not settings.AI_WHATSAPP_ENABLED:
         raise SupportError("Ative AI_WHATSAPP_ENABLED no servidor primeiro.", 409)
     c.ai_mode = mode
@@ -413,7 +415,7 @@ def _hard_handoff_reason(text, context=None):
         pending and _process_topic_message(text)
     )
     patterns = [
-        ("HUMAN_REQUESTED", r"humano|atendente|pessoa real|falar com (?:uma )?pessoa|tem alguem|pessoa de verdade"),
+        ("HUMAN_REQUESTED", r"humano|atendente|pessoa real|falar com (?:(?:uma )?pessoa|alguem)|tem alguem|pessoa de verdade"),
         ("PAYMENT", r"\bpix\b|pagamento|pagar|chave|cobranca|cartao|boleto"),
         ("PURCHASE_INTENT", r"quero comprar|vou levar|quero (?:essa|esse|esta|este)|separa|reserv|quero fechar|quero (?:duas|dois|uma|um|\d+) (?:dessa|desse)|fazer meu pedido|fecha pra mim|fecha.*compra"),
         ("RETURN_EXCHANGE", r"troca|devolu|devolver|reembolso|estorno"),

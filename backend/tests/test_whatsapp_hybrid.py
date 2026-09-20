@@ -461,6 +461,21 @@ def test_resume_sets_auto_atomically_and_stale_job_does_not_send(client, db, flo
     assert client.patch(f"/admin/conversations/{conversation.id}", json={"status": "AI"}).status_code == 409
 
 
+def test_closed_conversation_rejects_ai_mode_change(client, db, flow):
+    flow.receive("Oi")
+    flow.drain()
+    conversation = db.query(Conversation).one()
+    base = f"/admin/conversations/{conversation.id}"
+
+    assert client.post(base + "/close").status_code == 200
+    response = client.patch(base + "/ai-mode", json={"ai_mode": "OFF"})
+
+    assert response.status_code == 409
+    db.refresh(conversation)
+    assert conversation.status == "CLOSED"
+    assert conversation.ai_mode == "AUTO"
+
+
 def test_waiting_human_message_does_not_advance_clarification(db, flow):
     for message in ["Como funcionam os processos?", "Não sei", "Ainda não sei"]:
         flow.receive(message)
