@@ -8,6 +8,7 @@ from models.produto import Produto
 from channels.whatsapp_channel import IncomingText
 from core.config import settings
 from services import whatsapp_hybrid_service as hybrid, whatsapp_ai_service as ai, conversation_service
+from services.attendant_notification_service import deliver as deliver_notification
 from integrations.whatsapp.client import WhatsAppDeliveryError
 from integrations.llm.provider import Plan, ToolCall
 from test_catalog_tools import create_product
@@ -686,6 +687,61 @@ def test_notification_requires_template_outside_window(db, monkeypatch):
     assert service.deliver(db, payload) == "wamid.template"
     assert calls[0][0] == "5511999990000" and len(calls[0][3]) == 4
     assert calls[0][3][-1].endswith("/admin/#atendimento")
+
+
+def test_purchase_handoff_processes_real_notification_service(db, flow, monkeypatch):
+    calls = []
+    monkeypatch.setattr(settings, "WHATSAPP_ATTENDANT_TEMPLATE", "new_support")
+    monkeypatch.setattr(hybrid.notifications, "deliver", deliver_notification)
+    monkeypatch.setattr(hybrid.notifications, "send_template",
+                        lambda *args: calls.append(args) or "wamid.notification")
+
+    flow.receive("Quero comprar essa, vc pode fechar?")
+    flow.drain()
+
+    conversation = db.query(Conversation).one()
+    notification = next(job for job in db.query(DeliveryJob).all()
+                        if job.payload.get("purpose") == "notification")
+    assert conversation.status == "WAITING_HUMAN"
+    assert conversation.handoff_reason == "PURCHASE_INTENT"
+    assert notification.status == "sent"
+    assert notification.payload["meta_message_id"] == "wamid.notification"
+    assert calls[0][0] == settings.WHATSAPP_ATTENDANT_NUMBER
+    assert calls[0][1:3] == ("new_support", settings.WHATSAPP_ATTENDANT_TEMPLATE_LANGUAGE)
+    assert len(calls[0][3]) == 4
+
+
+def test_retryable_attendant_notification_failure_is_retried_and_logged(db, flow, monkeypatch, caplog):
+    calls = []
+
+    def fail_once(_db, _payload):
+        calls.append(True)
+        raise WhatsAppDeliveryError("whatsapp_rate_limited", retryable=True)
+
+    monkeypatch.setattr(hybrid.notifications, "deliver", fail_once)
+    flow.receive("Quero comprar")
+
+    with caplog.at_level("WARNING", logger="services.whatsapp_hybrid_service"):
+        flow.drain()
+
+    notification = next(job for job in db.query(DeliveryJob).all()
+                        if job.payload.get("purpose") == "notification")
+    assert calls == [True]
+    assert notification.status == "pending"
+    assert notification.error_code == "whatsapp_rate_limited"
+    assert notification.available_at > notification.updated_at
+    assert "attendant_notification_failed" in caplog.text
+    assert "error_code=whatsapp_rate_limited" in caplog.text
+
+    notification.available_at = utc_now() - timedelta(seconds=1)
+    db.commit()
+    monkeypatch.setattr(hybrid.notifications, "deliver",
+                        lambda _db, _payload: calls.append(True) or "wamid.notification")
+    assert hybrid.run_once(flow.sessions)
+    db.refresh(notification)
+    assert calls == [True, True]
+    assert notification.status == "sent"
+    assert notification.payload["meta_message_id"] == "wamid.notification"
 
 
 def test_notification_new_handoff_and_cancelled_auto_after_close(db, flow):

@@ -1,4 +1,5 @@
 """Durable hybrid workflow. Webhook persistence never waits for LLM or Meta."""
+from datetime import timedelta
 import logging
 from sqlalchemy import select, update
 from core.config import settings
@@ -176,12 +177,23 @@ def process_outbound(job, sessions):
                 status, metadata = "sent", {"meta_message_id": meta_id}
                 logger.info("%s conversation_id=%s", "attendant_notification_sent" if purpose == "notification" else "ai_auto_reply_sent", c.id)
             except WhatsAppDeliveryError as error:
-                status = "uncertain" if error.uncertain else "failed"
+                status = "uncertain" if error.uncertain else (
+                    "pending" if error.retryable and job.attempts < settings.DELIVERY_MAX_ATTEMPTS else "failed")
                 metadata = {"error_code": error.code}
+                if purpose == "notification":
+                    logger.warning("attendant_notification_failed conversation_id=%s status=%s error_code=%s retryable=%s uncertain=%s",
+                                   c.id, status, error.code, error.retryable, error.uncertain)
             except Exception:
                 status, metadata = "uncertain", {"error_code": "send_unknown"}
-        db.execute(update(DeliveryJob).where(*delivery._ownership(job)).values(status=status, locked_at=None,
-            error_code=metadata.get("error_code"), payload={**p, **metadata}, updated_at=utc_now()))
+                if purpose == "notification":
+                    logger.warning("attendant_notification_failed conversation_id=%s status=uncertain error_code=send_unknown",
+                                   c.id)
+        now = utc_now()
+        values = {"status": status, "locked_at": None, "error_code": metadata.get("error_code"),
+                  "payload": {**p, **metadata}, "updated_at": now}
+        if status == "pending":
+            values["available_at"] = now + timedelta(seconds=min(60, 5 * 2 ** job.attempts))
+        db.execute(update(DeliveryJob).where(*delivery._ownership(job)).values(**values))
         if p.get("message_id"):
             message = db.get(Message, p["message_id"])
             if message:
